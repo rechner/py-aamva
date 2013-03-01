@@ -5,7 +5,7 @@ A python library for decoding and working with AAMVA-complaint driver's licensee
 
 Copyright © 2013 Zachary Sturgeon <jkltechinc@gmail.com>
 
-*WARNING*:  Use of the information from machine-legible formats on
+__WARNING__:  Use of the information from machine-legible formats on
 a North-American identification card is subject to compliance with
 18 U.S.C. chapter 123, §2721, available here:
 (http://uscode.house.gov/download/pls/18C123.txt)  The author of this
@@ -26,8 +26,7 @@ TODO: Implement reading in straight from the device instead of just
 keyboard support: http://blog.flip-edesign.com/_rst/MagTek_USB_Card_Reader_Hacking_with_Python.html
 
 
-License
-=======
+## License ##
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
