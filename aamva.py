@@ -51,10 +51,21 @@ ANY = 0
 MAGSTRIPE = 1
 PDF417 = 2
 SMARTCARD = 4
+METRIC = 8
+IMPERIAL = 16
 EYECOLOURS = ['BLK', 'BLU', 'BRO', 'GRY', 'HAZ', 'MAR', 'PNK', 'DIC',
               'UNK']
 HAIRCOLOURS = ['BAL', 'BLK', 'BLN', 'BRO', 'GRY', 'RED', 'SDY', 'WHI',
                'UNK']
+
+#PDF417 format specifications and validations
+PDF_LINEFEED = '\x0A'  # '\n' (line feed)
+PDF_RECORDSEP = '\x1E' # record seperator
+PDF_SEGTERM = '\x0D'   # '\r' segment terminator (carriage return)
+PDF_FILETYPE = 'ANSI ' # identifies the file as an AAMVA compliant 
+PDF_VERSIONS = range(64) # decimal between 0 - 63
+PDF_ENTRIES = range(1, 100) #decimal number of subfile identifiers
+
 
 class AAMVA:
   def __init__(self, data=None, format=[ANY]):
@@ -62,11 +73,14 @@ class AAMVA:
     assert not isinstance(format, str)
     self.data = data
         
-  """
-  Decodes data from a string and returns a dictionary of values.
-  Data is decoded in the format preference specified in the constructor.
-  """
   def decode(self, data=None):
+    """
+    Decodes data from a string and returns a dictionary of values.
+    Data is decoded in the format preference specified in the constructor.
+    Missing or empty fields will usually be represented by 'None' type.
+    Note that the issue date is missing from the magstripe encoding, and
+    will always be represented by 'None'.
+    """
     if data == None:
       data = self.data
     if data == None:
@@ -156,7 +170,108 @@ class AAMVA:
              'restrictions' : restrictions, 
              'endorsements' : endorsements, 'sex' : sex, 
              'height' : height, 'weight' : weight, 'hair' : hair,
-             'eyes' : eyes }
+             'eyes' : eyes, 'issued' : None, 'units' : IMPERIAL,
+             'suffix' : None, 'prefix' : None }
+             
+    
+  def _decodeBarcode(self, data):
+    #header
+    #check for compliance character:
+    assert data[0] == '@', 'Missing compliance character (@)'
+    assert data[1] == PDF_LINEFEED, 'Missing data element separator (LF)'
+    assert data[2] == PDF_RECORDSEP, 'Missing record separator (RS)'
+    assert data[3] == PDF_SEGTERM, 'Missing segment terminator (CR)'
+    assert data[4:9] == PDF_FILETYPE, 
+      'Wrong file type (got "%s", should be "ANSI ")' % data[4:9]
+    issueIdentifier = data[9:15]
+    assert issueIdentifier.isdigit(), 'Issue Identifier is not an integer'
+    version = data[15:17]
+    assert version in PDF_VERSIONS, 
+      'Invalid data version number (got %s, should be 0 - 63)' % version
+    nEntries = data[17:19]
+    assert nEntries.isdigit(), 'Number of entries is not an integer'
+    #/header
+    #subfile designator
+    assert data[19:21] == 'DL', 
+      "Not a driver's license (Got '%s', should be 'DL')" % data[19:21]
+    offset = data[21:25]
+    assert offset.isdigit(), 'Subfile offset is not an integer'
+    length = data[25:29]
+    assert length.isdigit(), 'Subfile length is not an integer'
+    
+    subfile = data[offset:(offset+length)]
+    subfile = subfile.split('\n')
+    assert subfile[0][:2] == 'DL', "Not a driver's license"
+    subfile[0] = subfile[0][2:] #remove prepended "DL"
+    subfile[-1] = subfile[-1].strip('\r')
+    
+    #Decode fields as a dictionary
+    fields = dict((key[0:3], key[3:])  for key in subfile)
+    
+    try: #Prefer the optional, field-seperated values
+      name = []
+      name[0] = fields['DAB'] #Lastname, OPTIONAL 31
+      name[1] = fields['DAC'] #Firstname, OPTIONAL 32
+      name[2] = fields['DAD'] #Middle name/initial, OPTIONAL 33
+      nameSuffix = fields['DAE'] #OPTIONAL 34
+      namePrefix = fields['DAF'] #OPTIONAL 35
+    except KeyError: #fall back on the required field
+      name = fields['DAA'].split(',') #REQUIRED 1
+      nameSuffix = None
+      namePrefix = None
+    
+    #Convert datetime objects
+    dba = fields['DBA'] #Expiry date REQUIRED 11
+    exipry = datetime.date(dba[0:4], dba[4:6], dba[6:8])
+    dbb = fields['DBB'] #Date of Birth REQUIRED 12
+    dob = datetime.date(dbb[0:4], dbb[4:6], dbb[6:8])
+    dbd = fields['DBD'] #Document issue date REQUIRED 14
+    issued = datetime.date(dbd[0:4], dbd[4:6], dbd[6:8])
+    
+    sex = fields['DBC'] #REQUIRED 13
+    assert 'F' in sex or 'M' in sex, "Invalid sex"
+    
+    #Optional fields:
+    try:
+        height = fields['DAV'] #Prefer metric units OPTIONAL 42
+        weight = fields['DAX'] #OPTIONAL 43
+        units = METRIC
+    except KeyError:
+      try:
+        height = fields['DAU'] #U.S. imperial units OPTIONAL 20
+        weight = fields['DAW'] #OPTIONAL 21
+        units = IMPERIAL
+      except KeyError:
+        #No height/weight defined (these fields are optional by the standard)
+        height = None
+        weight = None
+        units = None
+    finally:
+      assert height.isdigit() or height is not None, "Invalid height"
+      assert weight.isdigit() or height is not None, "Invalid weight"
+
+    try:
+      hair = fields['DAZ']
+      eyes = fields['DAY']
+      assert hair in HAIRCOLOURS, "Invalid hair colour"
+      assert eyes in EYECOLOURS, "Invalid eye colour"
+    except KeyError:
+      hair = None
+      eyes = None
+    
+    return { 'first' : name[1], 'last' : name[0], 
+             'middle' : name[2], 'city' : fields['DAI'], #REQUIRED 3
+             'state' : fields['DAJ'], #REQUIRED 4
+             'address' : fields['DAG'], 'IIN' : issueIdentifier, #REQUIRED 2
+             'licenseNumber' : fields['DAQ'], 'expiry' : expiry, #REQUIRED 6
+             'dob' : dob, 'ZIP' : fields['DAK'].strip(), #REQUIRED 5
+             'class' : fields['DAR'].strip(), #REQUIRED 8
+             'restrictions' : fields['DAS'].strip(), #REQUIRED 9
+             'endorsements' : fields['DAT'].strip(), 'sex' : sex, #REQUIRED 10
+             'height' : height, 'weight' : weight, 'hair' : hair,
+             'eyes' : eyes, 'units' : units, 'issued' : issued,
+             'suffix' : nameSuffix, 'prefix' : namePrefix}
+    
     
 class ReadError(Exception):
     pass
