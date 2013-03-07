@@ -53,10 +53,24 @@ PDF417 = 2
 SMARTCARD = 4
 METRIC = 8
 IMPERIAL = 16
+MALE = 'M'
+FEMALE = 'F'
+DRIVER_LICENSE = 128
+IDENTITY_CARD = 256
 EYECOLOURS = ['BLK', 'BLU', 'BRO', 'GRY', 'HAZ', 'MAR', 'PNK', 'DIC',
               'UNK']
 HAIRCOLOURS = ['BAL', 'BLK', 'BLN', 'BRO', 'GRY', 'RED', 'SDY', 'WHI',
                'UNK']
+#Human-readable weight ranges
+METRIC_WEIGHTS = { 0 : '0 - 31 kg', 1 : '32 - 45 kg', 2 : '46 - 59 kg',
+                   3 : '60 - 70 kg', 4 : '71 - 86 kg', 5 : '87 - 100 kg', 
+                   6 : '101 - 113 kg', 7 : '114 - 127 kg', 
+                   8 : '128 - 145 kg', 9 : '146+ kg' }
+IMPERIAL_WEIGHTS = { 0 : '0 - 70 lbs', 1 : '71 - 100 lbs', 
+                     2 : '101 - 130 lbs', 3 : '131 - 160 lbs',
+                     4 : '161 - 190 lbs', 5 : '191 - 220 lbs',
+                     6 : '221 - 250 lbs', 7 : '251 - 280 lbs',
+                     8 : '281 - 320 lbs', 9 : '321+ lbs' }
 
 #PDF417 format specifications and validations
 PDF_LINEFEED = '\x0A'  # '\n' (line feed)
@@ -91,7 +105,14 @@ class AAMVA:
         try:
           return self._decodeMagstripe(data)
         except (IndexError, AssertionError) as e:
+          if form == MAGSTRIPE: raise ReadError(e)
+          #fail silently and continue to the next format
+      if form == ANY or form == PDF417:
+        try:
+          return self._decodeBarcode(data)
+        except (IndexError, AssertionError) as e:
           raise ReadError(e)
+          
 
   def _decodeMagstripe(self, data):
     fields = data.split('^') #split the field seperators
@@ -162,6 +183,9 @@ class AAMVA:
     assert hair in HAIRCOLOURS, "Invalid hair colour"
     assert eyes in EYECOLOURS, "Invalid eye colour"
     
+    #cast weight to Weight() type:
+    weight = Weight(None, int(weight), 'USA')    
+    
     return { 'first' : name[1], 'last' : name[0], 
              'middle' : name[2], 'city' : city, 'state' : state,
              'address' : address, 'IIN' : issueIdentifier,
@@ -181,33 +205,67 @@ class AAMVA:
     assert data[1] == PDF_LINEFEED, 'Missing data element separator (LF)'
     assert data[2] == PDF_RECORDSEP, 'Missing record separator (RS)'
     assert data[3] == PDF_SEGTERM, 'Missing segment terminator (CR)'
-    assert data[4:9] == PDF_FILETYPE, 
+    assert data[4:9] == PDF_FILETYPE, \
       'Wrong file type (got "%s", should be "ANSI ")' % data[4:9]
     issueIdentifier = data[9:15]
     assert issueIdentifier.isdigit(), 'Issue Identifier is not an integer'
-    version = data[15:17]
-    assert version in PDF_VERSIONS, 
+    version = int(data[15:17])
+    assert version in PDF_VERSIONS, \
       'Invalid data version number (got %s, should be 0 - 63)' % version
-    nEntries = data[17:19]
-    assert nEntries.isdigit(), 'Number of entries is not an integer'
-    #/header
-    #subfile designator
-    assert data[19:21] == 'DL', 
-      "Not a driver's license (Got '%s', should be 'DL')" % data[19:21]
-    offset = data[21:25]
-    assert offset.isdigit(), 'Subfile offset is not an integer'
-    length = data[25:29]
-    assert length.isdigit(), 'Subfile length is not an integer'
+      
+    print "Format version: " + str(version)
     
-    subfile = data[offset:(offset+length)]
-    subfile = subfile.split('\n')
+    revOffset = 0
+    if version in (0, 1):
+      nEntries = data[17:19]
+      assert nEntries.isdigit(), 'Number of entries is not an integer'
+      #subfile designator
+      assert data[19:21] == 'DL', \
+        "Not a driver's license (Got '%s', should be 'DL')" % data[19:21]
+      offset = data[21:25]
+      assert offset.isdigit(), 'Subfile offset is not an integer'
+      offset = int(offset)
+      length = data[25:29]
+      assert length.isdigit(), 'Subfile length is not an integer'
+      length = int(length)
+      decodeFunction = self._decodeBarcode_v1      
+      
+    elif version in (2, 3, 4, 5, 6):
+      #version 2 and later add a jurisdiction field
+      jurisdictionVersion = data[17:19]
+      assert jurisdictionVersion.isdigit(), \
+        'Jurisidiction version number is not an integer'
+      nEntries = data[19:21]
+      assert nEntries.isdigit(), 'Number of entries is not an integer'
+      #subfile designator
+      assert data[21:23] == 'DL', \
+        "Not a driver's license (Got '%s', should be 'DL')" % data[21:23]
+      offset = data[23:27]
+      assert offset.isdigit(), 'Subfile offset is not an integer'
+      offset = int(offset)
+      length = data[27:31]
+      assert length.isdigit(), 'Subfile length is not an integer'
+      length = int(length)
+      
+      if version == 4: decodeFunction = self._decodeBarcode_v4
+    
+    subfile = data[offset:(length)]
+    subfile = subfile.split(PDF_LINEFEED)
     assert subfile[0][:2] == 'DL', "Not a driver's license"
     subfile[0] = subfile[0][2:] #remove prepended "DL"
-    subfile[-1] = subfile[-1].strip('\r')
-    
+    subfile[-1] = subfile[-1].strip(PDF_SEGTERM)
     #Decode fields as a dictionary
-    fields = dict((key[0:3], key[3:])  for key in subfile)
+    fields = dict((key[0:3], key[3:]) for key in subfile)
     
+    return decodeFunction(fields, issueIdentifier)
+
+  
+  def _decodeBarcode_v0(self, data):
+    """Decodes a version 0 barcode specification (prior to 2000)"""
+    pass #TODO
+    
+  def _decodeBarcode_v1(self, fields, issueIdentifier):
+    #Version 1 (AAMVA DL/ID-2000 standard)
     try: #Prefer the optional, field-seperated values
       name = []
       name[0] = fields['DAB'] #Lastname, OPTIONAL 31
@@ -271,17 +329,241 @@ class AAMVA:
              'height' : height, 'weight' : weight, 'hair' : hair,
              'eyes' : eyes, 'units' : units, 'issued' : issued,
              'suffix' : nameSuffix, 'prefix' : namePrefix}
+             
     
+    
+  def _decodeBarcode_v4(self, fields, issueIdentifier):
+    #required fields
+    country = fields['DCG'] #USA or CAN
+      
+    #convert dates
+    dba = fields['DBA'] #expiry (REQUIRED REF d.)
+    expiry = self._parseDate(dba, country)
+    dbd = fields['DBD'] #issue date (REQUIRED REF g.)
+    issued = self._parseDate(dbd, country)
+    dbb = fields['DBB'] #date of birth (REQUIRED REF h.)
+    dob = self._parseDate(dbb, country)
+    
+    #jurisdiction-specific (required for DL only):
+    try:
+      vehicleClass = fields['DCA'].strip()
+      restrictions = fields['DCB'].strip()
+      endorsements = fields['DCD'].strip()
+      cardType = DRIVER_LICENSE
+    except KeyError:
+      #not a DL, use None instead
+      vehicleClass = None
+      restrictions = None
+      endorsements = None
+      cardType = IDENTITY_CARD
+
+    #Physical description
+    sex = fields['DBC']
+    assert sex in '12', "Invalid sex"
+    if sex == '1': sex = MALE
+    if sex == '2': sex = FEMALE
+    
+    height = fields['DAU']
+    if height[-2:] == 'in': #inches
+      height = int(height[0:2])
+      units = IMPERIAL
+    elif height[-2:].lower() == 'cm': #metric
+      height = int(height[0:2])
+      units = METRIC
+    else:
+      raise AssertionError("Invalid unit for height")
+      
+    #weight is optional
+    if units == METRIC:
+      try: weight = Weight(None, int(fields['DAX']))
+      except KeyError:
+        weight = None
+    elif units == IMPERIAL:
+      try:
+        weight = Weight(None, int(fields['DAW']), 'USA')
+      except KeyError:
+        weight = None
+    if weight == None:
+      #Try weight range
+      try: 
+        weight = fields['DCE']
+        if units == METRIC:
+          weight = Weight(int(weight), format='ISO')
+        elif units == IMPERIAL:
+          weight = Weight(int(weight), format='USA')
+      except KeyError:
+        weight = None
+        
+    #Hair/eye colour are mandatory
+    hair = fields['DAZ']
+    eyes = fields['DAY']
+    assert hair in HAIRCOLOURS, "Invalid hair colour"
+    assert eyes in EYECOLOURS, "Invalid eye colour"
+    
+    #name suffix optional. No prefix field in this version.
+    try: nameSuffix = fields['DCU']
+    except KeyError: nameSuffix = None
+    
+    return { 'first' : fields['DAC'], 'last' : fields['DCS'],
+             'middle' : fields['DAD'], 'city' : fields['DAI'], 
+             'state' : fields['DAJ'], 'country' : country,
+             'address' : fields['DAG'], 'IIN' : issueIdentifier,
+             'licenseNumber' : fields['DAQ'].strip(), 'expiry' : expiry, 
+             'dob' : dob, 'ZIP' : fields['DAK'].strip(), 
+             'class' : vehicleClass, 'restrictions' : restrictions, 
+             'endorsements' : endorsements, 'sex' : sex, 
+             'height' : height, 'weight' : weight, 'hair' : hair,
+             'eyes' : eyes, 'units' : units, 'issued' : issued,
+             'suffix' : nameSuffix, 'prefix' : None}
+    
+  def _parseDate(self, date, format='ISO'):
+    format = format.upper()
+    if format == 'USA':
+      return datetime.date(int(date[4:8]), int(date[0:2]), int(date[2:4]))
+    elif format == 'ISO' or format == 'CAN':
+      return datetime.date(int(date[0:4]), int(date[4:6]), int(date[6:8]))
+      
     
 class ReadError(Exception):
-    pass
+  pass
+  
+
+class Weight:
+  """
+  Represents the physical description of weight in an unit-neutral way.
+  """
+  def __init__(self, weightRange, weight=None, format='ISO'):
+    self.format = format
+    if format == 'ISO' or format == 'CAN': #use metric
+      self.units = METRIC
+    elif format == 'USA': #use imperial
+      self.units = IMPERIAL
+      
+    if weightRange == None: #Defined by exact weight (lbs or kg)
+      self.exact = True
+      assert weight != None and type(weight) == int, "Invalid weight"
+      self.weight = weight
+      if self.units == METRIC:
+        self.weightRange = self._getMetricRange(weight)
+      else:
+        self.weightRange = self._getImperialRange(weight)
+        
+    else: #Defined by weight range
+      self.exact = False
+      assert type(weightRange) == int
+      self.weightRange = weightRange
+      if self.units == METRIC:
+        self.weight = self._metricApproximation(weightRange)
+      else:
+        self.weight = self._imperialApproximation(weightRange)
+    
+      
+  def asMetric(self): #Returns integer
+    if self.units == METRIC:
+      return self.weight
+    else:
+      return int(self.weight / 2.2)
+      
+  def asImperial(self): #Returns integer
+    if self.units == IMPERIAL:
+      return self.weight
+    else:
+      return int(self.weight * 2.2)
+      
+  def _getMetricRange(self, weight):
+    """
+    Returns the integer weight range given a weight in kilograms
+    """
+    #TODO: Make this more pythonic
+    if weight <= 31: return 0
+    elif weight > 31 and weight <= 45: return 1
+    elif weight > 45 and weight <= 59: return 2
+    elif weight > 59 and weight <= 70: return 3
+    elif weight > 70 and weight <= 86: return 4
+    elif weight > 86 and weight <= 100: return 5
+    elif weight > 100 and weight <= 113: return 6
+    elif weight > 113 and weight <= 127: return 7
+    elif weight > 127 and weight <= 145: return 8
+    elif weight > 146: return 9
+    else: return None
+    
+  def _metricApproximation(self, weight):
+    """
+    Return an approximation of the weight given a weight range
+    """
+    table = { 0 : 20, 1 : 38, 2 : 53, 3 : 65, 4 : 79, 5 : 94, 
+              6 : 107, 7 : 121, 8 : 137, 9 : 146 }
+    return table[weight]
+    
+  def _getImperialRange(self, weight):
+    """
+    Returns the integer weight range given a weight in pounds
+    """
+    if weight <= 70: return 0
+    elif weight > 70 and weight <= 100: return 1
+    elif weight > 100 and weight <= 130: return 2
+    elif weight > 130 and weight <= 160: return 3
+    elif weight > 160 and weight <= 190: return 4
+    elif weight > 190 and weight <= 220: return 5
+    elif weight > 220 and weight <= 250: return 6
+    elif weight > 250 and weight <= 280: return 7
+    elif weight > 280 and weight <= 320: return 8
+    elif weight > 320: return 9
+    else: return None
+  
+  def _imperialApproximation(self, weight):
+    table = { 0 : 50, 1 : 85, 2 : 115, 3 : 145, 4 : 175, 5 : 205,
+              6 : 235, 7 : 265, 8 : 300, 9 : 320 }
+    return table[weight]
+    
+  def __str__(self):
+    if self.exact:
+      if self.units == METRIC:
+        return "%s kg" % self.weight
+      else:
+        return "%s lbs" % self.weight
+    else:
+      if self.units == METRIC:
+        return METRIC_WEIGHTS[self.weightRange]
+      else:
+        return IMPERIAL_WEIGHTS[self.weightRange]
+      
+  #Not sure why you'd ever need to do this
+  def __add__(self, other):
+    if self.units == METRIC:
+      return Weight(None, self.weight + other.asMetric(), format='ISO')
+    else:
+      return Weight(None, self.weight + other.asImperial(), format='USA')
+  
+  def __repr__(self):
+    return "%s(weightRange=%s, weight=%s, format=%s)" % \
+      (self.__class__.__name__, self.weightRange, self.weight, self.format)
 
 if __name__ == '__main__':
   import pprint
   
   parser = AAMVA()
+  
+  #~ while True:
+    #~ try: #Reading from an HID card reader (stdin)
+      #~ pprint.pprint(parser.decode(raw_input("Swipe a card")))
+    #~ except ReadError as e:
+      #~ print e
+      #~ print "Read error.  Try again."
+
+  #reading from a serial barcode reader
+  import serial
+  ser = serial.Serial('/dev/ttyUSB0')
   while True:
-    try:
-      pprint.pprint(parser.decode(raw_input("Swipe a card")))
-    except ReadError:
-      print "Read error.  Try again."
+    charbuffer = ""
+    print "Scan a license"
+    while charbuffer[-2:] != '\r\n':
+      char = ser.read(1)
+      charbuffer += char
+    #~ #try:
+    #print "Got string: " + charbuffer
+    pprint.pprint(parser.decode(str(charbuffer)))
+    #~ #except ReadError:
+      #~ #print "Parse error. Try again"
+      
+  ser.close()
