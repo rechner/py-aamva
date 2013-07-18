@@ -58,7 +58,7 @@ FEMALE = 'F'
 DRIVER_LICENSE = 128
 IDENTITY_CARD = 256
 EYECOLOURS = ['BLK', 'BLU', 'BRO', 'GRY', 'HAZ', 'MAR', 'PNK', 'DIC',
-              'UNK']
+              'UNK', 'GRN']
 HAIRCOLOURS = ['BAL', 'BLK', 'BLN', 'BRO', 'GRY', 'RED', 'SDY', 'WHI',
                'UNK']
 #Human-readable weight ranges
@@ -108,10 +108,12 @@ class AAMVA:
           if form == MAGSTRIPE: raise ReadError(e)
           #fail silently and continue to the next format
       if form == ANY or form == PDF417:
-        try:
-          return self._decodeBarcode(data)
-        except (IndexError, AssertionError) as e:
-          raise ReadError(e)
+        #pprint.pprint(data)
+        return self._decodeBarcode(data)
+        #~ try:
+          #~ return self._decodeBarcode(data)
+        #~ except (IndexError, AssertionError, ReadError) as e:
+          #~ raise ReadError("Unable to decode as barcode")
           
 
   def _decodeMagstripe(self, data):
@@ -247,6 +249,7 @@ class AAMVA:
       assert length.isdigit(), 'Subfile length is not an integer'
       length = int(length)
       
+      if version == 3: decodeFunction = self._decodeBarcode_v3
       if version == 4: decodeFunction = self._decodeBarcode_v4
     
     subfile = data[offset:(length)]
@@ -257,7 +260,10 @@ class AAMVA:
     #Decode fields as a dictionary
     fields = dict((key[0:3], key[3:]) for key in subfile)
     
-    return decodeFunction(fields, issueIdentifier)
+    try:
+      return decodeFunction(fields, issueIdentifier)
+    except UnboundLocalError as e:
+      raise NotImplemented("ERROR: Version {0} decoding not implemented!".format(version))
 
   
   def _decodeBarcode_v0(self, data):
@@ -330,6 +336,87 @@ class AAMVA:
              'eyes' : eyes, 'units' : units, 'issued' : issued,
              'suffix' : nameSuffix, 'prefix' : namePrefix}
              
+
+  def _decodeBarcode_v3(self, fields, issueIdentifier):
+    #required fields
+    country = fields['DCG'] #USA or CAN
+    
+    #convert dates
+    dba = fields['DBA'] #expiry (REQUIRED REF d.)
+    expiry = self._parseDate(dba, country)
+    dbd = fields['DBD'] #issue date (REQUIRED REF g.)
+    issued = self._parseDate(dbd, country)
+    dbb = fields['DBB'] #date of birth (REQUIRED REF h.)
+    dob = self._parseDate(dbb, country)
+    
+    #jurisdiction-specific (required for DL only):
+    try:
+      vehicleClass = fields['DCA'].strip()
+      restrictions = fields['DCB'].strip()
+      endorsements = fields['DCD'].strip()
+      cardType = DRIVER_LICENSE
+    except KeyError:
+      #not a DL, use None instead
+      vehicleClass = None
+      restrictions = None
+      endorsements = None
+      cardType = IDENTITY_CARD
+
+    #Physical description
+    sex = fields['DBC']
+    assert sex in '12', "Invalid sex"
+    if sex == '1': sex = MALE
+    if sex == '2': sex = FEMALE
+    
+    height = fields['DAU']
+    if height[-2:] == 'in': #inches
+      height = int(height[0:3])
+      units = IMPERIAL
+      height = Height(height, format='USA')
+    elif height[-2:].lower() == 'cm': #metric
+      height = int(height[0:3])
+      units = METRIC
+      height = Height(height)
+    else:
+      raise AssertionError("Invalid unit for height")
+      
+    #Eye colour is mandatory
+    eyes = fields['DAY']
+    assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(eyes)
+      
+    #But hair colour is optional for some reason in this version
+    try:
+      hair = fields['DAZ']
+      assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(hair)
+    except KeyError:
+      hair = None
+    
+    #name suffix optional. No prefix field in this version.
+    try: nameSuffix = fields['DCU']
+    except KeyError: nameSuffix = None
+    
+    #Try weight range
+    try: 
+      weight = fields['DCE']
+      if units == METRIC:
+        weight = Weight(int(weight), format='ISO')
+      elif units == IMPERIAL:
+        weight = Weight(int(weight), format='USA')
+    except KeyError:
+      weight = None
+    
+    return { 'first' : fields['DCT'].strip(), 'last' : fields['DCS'].strip(),
+             'middle' : None, 'city' : fields['DAI'].strip(), 
+             'state' : fields['DAJ'].strip(), 'country' : country.strip(),
+             'address' : fields['DAG'].strip(), 'IIN' : issueIdentifier.strip(),
+             'licenseNumber' : fields['DAQ'].strip(), 'expiry' : expiry, 
+             'dob' : dob, 'ZIP' : fields['DAK'].strip(), 
+             'class' : vehicleClass, 'restrictions' : restrictions, 
+             'endorsements' : endorsements, 'sex' : sex, 
+             'height' : height, 'weight' : weight, 'hair' : hair,
+             'eyes' : eyes, 'units' : units, 'issued' : issued,
+             'suffix' : nameSuffix, 'prefix' : None}
+    
     
     
   def _decodeBarcode_v4(self, fields, issueIdentifier):
@@ -365,11 +452,13 @@ class AAMVA:
     
     height = fields['DAU']
     if height[-2:] == 'in': #inches
-      height = int(height[0:2])
+      height = int(height[0:3])
       units = IMPERIAL
+      height = Height(height, format='USA')
     elif height[-2:].lower() == 'cm': #metric
-      height = int(height[0:2])
+      height = int(height[0:3])
       units = METRIC
+      height = Height(height)
     else:
       raise AssertionError("Invalid unit for height")
       
@@ -397,8 +486,8 @@ class AAMVA:
     #Hair/eye colour are mandatory
     hair = fields['DAZ']
     eyes = fields['DAY']
-    assert hair in HAIRCOLOURS, "Invalid hair colour"
-    assert eyes in EYECOLOURS, "Invalid eye colour"
+    assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(eyes)
+    assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(hair)
     
     #name suffix optional. No prefix field in this version.
     try: nameSuffix = fields['DCU']
@@ -427,6 +516,56 @@ class AAMVA:
 class ReadError(Exception):
   pass
   
+class HeightError(Exception):
+  pass
+  
+class WeightError(Exception):
+  pass
+  
+class NotImplemented(Exception):
+  pass
+  
+class Height:
+  """
+  Represents the physical description of height in an unit-netural way.
+  Since not all MRT formats and barcode versions express height in an
+  international format, this class makes it easy to convert between the
+  units provided by AAMVA physical descriptions between inches (USA) and
+  centimetres (Canada)
+  """
+  def __init__(self, height, format='ISO'):
+    self.format = format
+    if format == 'ISO' or format == 'CAN': #use metric (cm)
+      self.units = METRIC
+    elif format == 'USA':
+      self.units = IMPERIAL
+    else:
+      raise HeightError("Invalid format: '%s'" % format)
+      
+    self.height = height
+    
+  def asMetric(self):
+    """
+    Returns height as integer in centimetres
+    """
+    if self.units == METRIC:
+      return self.height
+    else:
+      return int(round(self.height * 0.393700787)) #convert to cm
+      
+  def asImperial(self):
+    """
+    Returns height as integer in inches
+    """
+    if self.units == IMPERIAL:
+      return self.height
+    else:
+      return int(round(self.height * 2.54)) #convert to inches
+      
+  def __repr__(self):
+    return "%s(%s, format='%s')" % (self.__class__.__name__, \
+      self.height, self.format)
+  
 
 class Weight:
   """
@@ -438,6 +577,8 @@ class Weight:
       self.units = METRIC
     elif format == 'USA': #use imperial
       self.units = IMPERIAL
+    else:
+      raise WeightError("Invalid format: '%s'" % format)
       
     if weightRange == None: #Defined by exact weight (lbs or kg)
       self.exact = True
@@ -462,13 +603,13 @@ class Weight:
     if self.units == METRIC:
       return self.weight
     else:
-      return int(self.weight / 2.2)
+      return int(round(self.weight / 2.2))
       
   def asImperial(self): #Returns integer
     if self.units == IMPERIAL:
       return self.weight
     else:
-      return int(self.weight * 2.2)
+      return int(round(self.weight * 2.2))
       
   def _getMetricRange(self, weight):
     """
@@ -542,7 +683,7 @@ class Weight:
 if __name__ == '__main__':
   import pprint
   
-  parser = AAMVA()
+  parser = AAMVA(format=[PDF417])
   
   #~ while True:
     #~ try: #Reading from an HID card reader (stdin)
