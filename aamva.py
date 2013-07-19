@@ -43,8 +43,11 @@
 
 #TODO: Implement reading in straight from the device instead of just
 # keyboard support: http://blog.flip-edesign.com/_rst/MagTek_USB_Card_Reader_Hacking_with_Python.html
+#TODO: Add federal commercial driving codes "DCH" to all versions.
 
 import datetime
+
+debug = True
 
 """ Constants and signals """ #Better way to do this?
 ANY = 0
@@ -108,12 +111,12 @@ class AAMVA:
           if form == MAGSTRIPE: raise ReadError(e)
           #fail silently and continue to the next format
       if form == ANY or form == PDF417:
-        #pprint.pprint(data)
-        return self._decodeBarcode(data)
-        #~ try:
-          #~ return self._decodeBarcode(data)
-        #~ except (IndexError, AssertionError, ReadError) as e:
-          #~ raise ReadError("Unable to decode as barcode")
+        #~ pprint.pprint(data)
+        #~ return self._decodeBarcode(data)
+        try:
+          return self._decodeBarcode(data)
+        except (IndexError, AssertionError, ReadError) as e:
+          raise ReadError("Unable to decode as barcode")
           
 
   def _decodeMagstripe(self, data):
@@ -133,7 +136,7 @@ class AAMVA:
       remaining = fields[2] #track 2 data will be one behind in this case
     else:
       name_pre = fields[1]
-      address = fields[2].split('$')
+      address = fields[2].split('$')[0]
       remaining = fields[3] #track 2 & 3
       
     assert len(name_pre) > 0, "Empty name field"
@@ -185,8 +188,12 @@ class AAMVA:
     assert hair in HAIRCOLOURS, "Invalid hair colour"
     assert eyes in EYECOLOURS, "Invalid eye colour"
     
+    #Since there's no way to determine if a magstripe is for USA or 
+    #Canada, we'll just have to set a default and assume units:
     #cast weight to Weight() type:
-    weight = Weight(None, int(weight), 'USA')    
+    weight = Weight(None, int(weight), 'USA')
+    #cast height (Also assumes no one is taller than 9'11"
+    height = Height((int(height[0])*12)+int(height[1:]), 'USA')
     
     return { 'first' : name[1], 'last' : name[0], 
              'middle' : name[2], 'city' : city, 'state' : state,
@@ -215,7 +222,7 @@ class AAMVA:
     assert version in PDF_VERSIONS, \
       'Invalid data version number (got %s, should be 0 - 63)' % version
       
-    print "Format version: " + str(version)
+    log("Format version: " + str(version))
     
     revOffset = 0
     if version in (0, 1):
@@ -239,24 +246,58 @@ class AAMVA:
         'Jurisidiction version number is not an integer'
       nEntries = data[19:21]
       assert nEntries.isdigit(), 'Number of entries is not an integer'
-      #subfile designator
-      assert data[21:23] == 'DL', \
-        "Not a driver's license (Got '%s', should be 'DL')" % data[21:23]
-      offset = data[23:27]
-      assert offset.isdigit(), 'Subfile offset is not an integer'
-      offset = int(offset)
-      length = data[27:31]
-      assert length.isdigit(), 'Subfile length is not an integer'
-      length = int(length)
+      nEntries = int(nEntries)
+      log("Entries: " + str(nEntries))
+      
+      #parse subfile designators
+      readOffset = 0
+      parsedData = ""
+      recordType = None
+      
+      for fileId in range(nEntries):
+        #Read each subfile designator
+        log("=== Subfile {0} ===".format(fileId))
+        if recordType is None: #Subfile type determines document type
+          recordType = data[readOffset+21:readOffset+23]
+        offset = data[readOffset+23:readOffset+27]
+        length = data[readOffset+27:readOffset+31]
+        assert offset.isdigit(), 'Subfile offset is not an integer'
+        assert length.isdigit(), 'Subfile length is not an integer'
+        offset = int(offset)
+        length = int(length)
+        log("Offset: {0}".format(offset))
+        log("Length: {0}".format(length))
+        parsedData += data[offset:offset+length] #suck in all of record
+        log(parsedData)
+        log("=== End Subfile ===")
+        readOffset += 10
+                
+      #~ assert data[21:23] == 'DL', \
+        #~ "Not a driver's license (Got '%s', should be 'DL')" % data[21:23]
+      #~ offset = data[23:27]
+      #~ assert offset.isdigit(), 'Subfile offset is not an integer'
+      #~ offset = int(offset)
+      #~ print "Offset: " + str(offset)
+      #~ length = data[27:31]
+      #~ assert length.isdigit(), 'Subfile length is not an integer'
+      #~ length = int(length)
+      #~ print "Length: " + str(length)
       
       if version == 3: decodeFunction = self._decodeBarcode_v3
       if version == 4: decodeFunction = self._decodeBarcode_v4
     
-    subfile = data[offset:(length)]
-    subfile = subfile.split(PDF_LINEFEED)
+    #Seperate out subfiles, removing trailing empty list
+    parsedData = parsedData.split(PDF_SEGTERM)[:-1]
+    parsedData = [ i.strip('\n') for i in parsedData ] #remove trailing \n's
+    parsedData = "".join(parsedData)
+    log(parsedData)
+    subfile = parsedData.split(PDF_LINEFEED)
+    if debug: pprint.pprint(subfile)
     assert subfile[0][:2] == 'DL', "Not a driver's license"
     subfile[0] = subfile[0][2:] #remove prepended "DL"
     subfile[-1] = subfile[-1].strip(PDF_SEGTERM)
+    print "Subfile After"
+    pprint.pprint(subfile)
     #Decode fields as a dictionary
     fields = dict((key[0:3], key[3:]) for key in subfile)
     
@@ -338,6 +379,8 @@ class AAMVA:
              
 
   def _decodeBarcode_v3(self, fields, issueIdentifier):
+    
+    pprint.pprint(fields)
     #required fields
     country = fields['DCG'] #USA or CAN
     
@@ -368,17 +411,30 @@ class AAMVA:
     if sex == '1': sex = MALE
     if sex == '2': sex = FEMALE
     
-    height = fields['DAU']
-    if height[-2:] == 'in': #inches
-      height = int(height[0:3])
-      units = IMPERIAL
-      height = Height(height, format='USA')
-    elif height[-2:].lower() == 'cm': #metric
-      height = int(height[0:3])
-      units = METRIC
-      height = Height(height)
-    else:
-      raise AssertionError("Invalid unit for height")
+    #Some v.03 barcodes (Indiana) [wrongly, and stupidly] omit
+    # the mandatory height (DAU) field. 
+    try:
+      #Normal v.03 barcodes:
+      height = fields['DAU']
+      if height[-2:] == 'in': #inches
+        height = int(height[0:3])
+        units = IMPERIAL
+        height = Height(height, format='USA')
+      elif height[-2:].lower() == 'cm': #metric
+        height = int(height[0:3])
+        units = METRIC
+        height = Height(height)
+      else:
+        raise AssertionError("Invalid unit for height")
+    except KeyError:
+      try: #Indiana puts it in the jurisdiction field ZIJ
+        height = fields['ZIJ'].split('-')
+        units = IMPERIAL
+        height = Height((int(height[0])*12)+int(height[1]), format='USA')
+      except KeyError:
+        #Give up on parsing height
+        log("ERROR: Unable to parse height.")
+        height = None
       
     #Eye colour is mandatory
     eyes = fields['DAY']
@@ -389,7 +445,11 @@ class AAMVA:
       hair = fields['DAZ']
       assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(hair)
     except KeyError:
-      hair = None
+      try: #Indiana
+        hair = fields['ZIL']
+        assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(hair)
+      except KeyError:
+        hair = None
     
     #name suffix optional. No prefix field in this version.
     try: nameSuffix = fields['DCU']
@@ -403,10 +463,24 @@ class AAMVA:
       elif units == IMPERIAL:
         weight = Weight(int(weight), format='USA')
     except KeyError:
-      weight = None
+      try: #Indiana again
+        weight = fields['ZIK']
+        assert weight.isdigit(), 'Weight is non-integer: {0}'.format(weight)
+        weight = Weight(int(weight), format='USA')
+      except KeyError:
+        weight = None #Give up
+      
+    #Abstract the name field:
+    names = fields['DCT'].split(',')
+    firstName = names[0].strip()
+    if len(names) == 1: #No middle name
+      middleName = None
+    else:
+      middleName = ', '.join(names[1:]).strip()
+          
     
-    return { 'first' : fields['DCT'].strip(), 'last' : fields['DCS'].strip(),
-             'middle' : None, 'city' : fields['DAI'].strip(), 
+    return { 'first' : firstName, 'last' : fields['DCS'].strip(),
+             'middle' : middleName, 'city' : fields['DAI'].strip(), 
              'state' : fields['DAJ'].strip(), 'country' : country.strip(),
              'address' : fields['DAG'].strip(), 'IIN' : issueIdentifier.strip(),
              'licenseNumber' : fields['DAQ'].strip(), 'expiry' : expiry, 
@@ -415,7 +489,8 @@ class AAMVA:
              'endorsements' : endorsements, 'sex' : sex, 
              'height' : height, 'weight' : weight, 'hair' : hair,
              'eyes' : eyes, 'units' : units, 'issued' : issued,
-             'suffix' : nameSuffix, 'prefix' : None}
+             'suffix' : nameSuffix, 'prefix' : None,
+             'document' : fields['DCF'].strip() }
     
     
     
@@ -503,7 +578,8 @@ class AAMVA:
              'endorsements' : endorsements, 'sex' : sex, 
              'height' : height, 'weight' : weight, 'hair' : hair,
              'eyes' : eyes, 'units' : units, 'issued' : issued,
-             'suffix' : nameSuffix, 'prefix' : None}
+             'suffix' : nameSuffix, 'prefix' : None,
+             'document' : fields['DCF'].strip() }
     
   def _parseDate(self, date, format='ISO'):
     format = format.upper()
@@ -524,6 +600,16 @@ class WeightError(Exception):
   
 class NotImplemented(Exception):
   pass
+  
+class Subfile:
+  """
+  Subfile abstraction to help organize parsing of raw PDF417 data.
+  Not intended for external use
+  """
+  type = None
+  offset = None
+  length = None
+  data = {}
   
 class Height:
   """
@@ -679,11 +765,15 @@ class Weight:
   def __repr__(self):
     return "%s(weightRange=%s, weight=%s, format=%s)" % \
       (self.__class__.__name__, self.weightRange, self.weight, self.format)
+      
+def log(string):
+  """Barebones logging"""
+  if debug: print string
 
 if __name__ == '__main__':
   import pprint
   
-  parser = AAMVA(format=[PDF417])
+  parser = AAMVA()
   
   #~ while True:
     #~ try: #Reading from an HID card reader (stdin)
@@ -701,10 +791,10 @@ if __name__ == '__main__':
     while charbuffer[-2:] != '\r\n':
       char = ser.read(1)
       charbuffer += char
-    #~ #try:
-    #print "Got string: " + charbuffer
+    #try:
+    print "Got string: " + charbuffer + "\n\n\n\n"
     pprint.pprint(parser.decode(str(charbuffer)))
-    #~ #except ReadError:
-      #~ #print "Parse error. Try again"
+    #except ReadError:
+      #print "Parse error. Try again"
       
   ser.close()
