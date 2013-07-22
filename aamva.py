@@ -47,7 +47,9 @@
 
 import datetime
 
-debug = True
+debug = False
+
+if debug: import pprint
 
 """ Constants and signals """ #Better way to do this?
 ANY = 0
@@ -296,8 +298,6 @@ class AAMVA:
     assert subfile[0][:2] == 'DL', "Not a driver's license"
     subfile[0] = subfile[0][2:] #remove prepended "DL"
     subfile[-1] = subfile[-1].strip(PDF_SEGTERM)
-    print "Subfile After"
-    pprint.pprint(subfile)
     #Decode fields as a dictionary
     fields = dict((key[0:3], key[3:]) for key in subfile)
     
@@ -380,7 +380,7 @@ class AAMVA:
 
   def _decodeBarcode_v3(self, fields, issueIdentifier):
     
-    pprint.pprint(fields)
+    if debug: pprint.pprint(fields)
     #required fields
     country = fields['DCG'] #USA or CAN
     
@@ -477,6 +477,15 @@ class AAMVA:
       middleName = None
     else:
       middleName = ', '.join(names[1:]).strip()
+    
+    #Indiana, again, uses spaces instead
+    if ',' not in fields['DCT']:
+      names = fields['DCT'].split(' ')
+      firstName = names[0].strip()
+      if len(names) == 1:
+        middleName = None
+      else:
+        middleName = ' '.join(names[1:]).strip()
           
     
     return { 'first' : firstName, 'last' : fields['DCS'].strip(),
@@ -651,6 +660,12 @@ class Height:
   def __repr__(self):
     return "%s(%s, format='%s')" % (self.__class__.__name__, \
       self.height, self.format)
+      
+  def __str__(self):
+    if self.units == IMPERIAL:
+      return str(self.height) + " in"
+    else:
+      return str(self.height) + " cm"
   
 
 class Weight:
