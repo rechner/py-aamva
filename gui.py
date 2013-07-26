@@ -9,6 +9,8 @@ import aamva
 
 t_DATA_WAITING = wx.NewEventType()
 DATA_WAITING = wx.PyEventBinder(t_DATA_WAITING, 1)
+t_THREAD_ERROR = wx.NewEventType()
+THREAD_ERROR = wx.PyEventBinder(t_THREAD_ERROR, 1)
 
 class AAMVATestFrame(wx.Frame):
     def __init__(self, *args, **kwargs):
@@ -141,6 +143,7 @@ class AAMVATestFrame(wx.Frame):
         
         #Bind events
         self.Bind(DATA_WAITING, self.ProcessScan)
+        self.Bind(THREAD_ERROR, self.ThreadError)
         self.Bind(wx.EVT_CLOSE, self.Close)
         
         #Setup parser
@@ -184,6 +187,7 @@ class AAMVATestFrame(wx.Frame):
     def _serialWorkerThread(self, device):
         
         try:
+            ser = None
             ser = serial.Serial(device, timeout=0.2)
             
             while True:
@@ -203,12 +207,21 @@ class AAMVATestFrame(wx.Frame):
                 evt.data = charbuffer
                 self.GetEventHandler().ProcessEvent(evt)
                 
+        except serial.SerialException as e:
+            #Post event to display error message
+            evt = wx.PyCommandEvent(t_THREAD_ERROR, self.GetId())
+            evt.message = "Error opening scanner ({0}):\n\n{1}".format(device, e)
+            self.GetEventHandler().ProcessEvent(evt)
+                
         finally:
             #Close the serial device if something goes wrong
-            ser.close()
+            if ser: ser.close()
             return
+            
+    def ThreadError(self, evt):
+        wx.CallAfter(self.ErrorMessage, evt.message)
         
-    def _showError(self, message):
+    def ErrorMessage(self, message):
         dlg = wx.MessageDialog(self.panel, message,
                 'Read Error', wx.OK | wx.ICON_ERROR)
         dlg.ShowModal()
@@ -221,7 +234,7 @@ class AAMVATestFrame(wx.Frame):
             license = self.parser.decode(evt.data)
         except aamva.ReadError as e:
             #GUI interaction must be done in a thread-safe way
-            wx.CallAfter(self._showError, 'Invalid data.\n{0}'.format(e))
+            wx.CallAfter(self.ErrorMessage, 'Invalid data.\n{0}'.format(e))
             return
             
         #clear form
