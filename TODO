@@ -6,3 +6,89 @@
 - FIXME's: check if vechilce-related fields are empty or unset to determine if the card is a DL or ID card
 - Add under 18, under 19, and under 21 boolean flags to all versions calculated from current date. v5 and later should test calculated dates against DDH, DDI, and DDJ respectively, and < v4 should output these calculations in the "arrival_dates" dictionary.
 
+- Change intermediary data format from a single dictionary to a structure more representative of the actual records.  The first record must always be DL or ID data, and subsequent records will be jurisdiction-specific. With this in mind, the intermediary format should be as follows (or alternatively, flattened with an ordered dictionary):
+
+  [ 
+    { 
+      'type' : 'DL',
+      'fields' : {
+        'DAA' : '…',
+        …
+       }
+     },
+     
+     {
+       'type' : 'ZV',
+       'fields' : {
+         'ZAA' : '…',
+         …
+       }
+     }
+   ]
+   
+- Header information should be preserved in a dictionary and formatted for the final output
+
+- Final output preliminary format:
+
+  {
+    'header'  : {
+      'iin'      : nnnnnn,
+      'version'  : nn,
+      'format'   : nn,
+      'filetype' : 'ANSI',
+      'type'     : 'DL'
+    },
+    
+    # Everything here should be nicely formatted
+    'id'      : '…',
+    'prefix'  : '…',
+    'last'    : '…',
+    'first'   : '…',
+    'middle'  : '…',
+    'suffix'  : '…',
+    'dob'     : DateTime(…),
+    'eyes'    : '…',
+    'hair'    : '…',
+    'sex'     : '…',
+    'height'  : Height(…),
+    'weight'  : Weight(…),
+    'address'  : '…',
+    'address2' : '…',
+    'city'     : '…',
+    'postcode' : '…',
+    'state'    : '…',
+    'country'  : '…',
+    'issued'   : DateTime(…),
+    'expires'  : DateTime(…),
+    
+    # Optional (DL vs ID)
+    'class'        : '…',
+    'restrictions' : '…',
+    'endorsements' : '…',
+    
+    # Derived data
+    'under18'  : False,
+    'under19'  : False,
+    'under21'  : False,
+    
+    'arrival'  : {
+      'under_18_until' : DateTime(…),
+      'under_19_until' : DateTime(…),
+      'under_21_until' : DateTime(…)
+    }
+    
+    'subfiles' : {
+      'DL' : {				# Original ID fields
+        'DCA' : '…',
+        'DCB' : '…',
+        'DCD' : '…',
+        ...
+      },
+      'ZV' : {				# Jurisdictional records, if present
+      	'ZVA' : '…',
+      	'ZVB' : '…',
+      	'ZVC' : '…',
+      	...
+      }
+    }
+  }

@@ -47,7 +47,7 @@
 
 import datetime
 
-debug = False
+debug = True
 
 if debug: import pprint
 
@@ -242,6 +242,7 @@ class AAMVA:
       nEntries = int(nEntries)
       log("Entries: " + str(nEntries))
       #subfile designator
+      # FIXME could also be 'ID'
       assert data[19:21] == 'DL', \
         "Not a driver's license (Got '%s', should be 'DL')" % data[19:21]
       offset = data[21:25]
@@ -270,7 +271,7 @@ class AAMVA:
         log("Offset: {0}".format(offset))
         log("Length: {0}".format(length))
         parsedData += data[offset:offset+length] #suck in all of record
-        log(parsedData)
+        log(data[offset:offset+length])
         log("=== End Subfile ===")
         readOffset += 10
 
@@ -288,6 +289,7 @@ class AAMVA:
       #parse subfile designators
       readOffset = 0
       recordType = None
+      import pdb; pdb.set_trace()
 
       for fileId in range(nEntries):
         #Read each subfile designator
@@ -302,8 +304,8 @@ class AAMVA:
         length = int(length)
         log("Offset: {0}".format(offset))
         log("Length: {0}".format(length))
-        parsedData += data[offset:offset+length] #suck in all of record
-        log(parsedData)
+        parsedData += data[offset:offset+length]  #suck in all of record
+        log(data[offset:offset+length])
         log("=== End Subfile ===")
         readOffset += 10
 
@@ -325,8 +327,13 @@ class AAMVA:
 
     #Seperate out subfiles, removing trailing empty list
     parsedData = parsedData.split(segterm)[:-1]
+
+    # FIXME: Munging record separator here
+    # should probably give subfiles their own encapsulation treatment to better match
+    # format of barcode and allow for duplicate subfile fields
     parsedData = [ i.strip('\n') for i in parsedData ] #remove trailing \n's
     parsedData = "".join(parsedData)
+
     log(parsedData)
     subfile = parsedData.split(PDF_LINEFEED)
     if debug: pprint.pprint(subfile)
@@ -335,7 +342,7 @@ class AAMVA:
     subfile[0] = subfile[0][2:] #remove prepended "DL"
     subfile[-1] = subfile[-1].strip(segterm)
     #Decode fields as a dictionary
-    fields = dict((key[0:3], key[3:]) for key in subfile)
+    fields = dict((key[0:3], key[3:].strip()) for key in subfile)
 
     try:
       return decodeFunction(fields, issueIdentifier)
@@ -576,14 +583,21 @@ class AAMVA:
     if sex == '2': sex = FEMALE
 
     height = fields['DAU']
-    if height[-2:] == 'in': #inches
-      height = int(height[0:3])
-      units = IMPERIAL
-      height = Height(height, format='USA')
-    elif height[-2:].lower() == 'cm': #metric
+    if height[-2:].lower() == 'cm': #metric
       height = int(height[0:3])
       units = METRIC
       height = Height(height)
+    elif height [-1] == '"':
+      # US height encoding for some implementations of this version is feet and inches
+      # (e.g. 6'-01"")
+      feet = int(height[0])
+      inches = int(height[3:5])
+      units = IMPERIAL
+      height = Height((feet*12 + inches), format='USA')
+    elif height [-2:].lower() == 'in':
+      height = int(height[0:3])
+      units = IMPERIAL
+      height = Height(height, format='USA')
     else:
       raise AssertionError("Invalid unit for height")
 
@@ -611,12 +625,14 @@ class AAMVA:
     #Hair/eye colour are mandatory
     hair = fields['DAZ']
     eyes = fields['DAY']
-    assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(eyes)
-    assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(hair)
+    assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(hair)
+    assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(eyes)
 
     #name suffix optional. No prefix field in this version.
-    try: nameSuffix = fields['DCU']
+    try: nameSuffix = fields['DCU'].strip()
     except KeyError: nameSuffix = None
+
+    first = fields['DAC'].strip()
 
     return { 'first' : fields['DAC'], 'last' : fields['DCS'],
              'middle' : fields['DAD'], 'city' : fields['DAI'],
@@ -629,7 +645,7 @@ class AAMVA:
              'height' : height, 'weight' : weight, 'hair' : hair,
              'eyes' : eyes, 'units' : units, 'issued' : issued,
              'suffix' : nameSuffix, 'prefix' : None,
-             'document' : fields['DCF'].strip() }
+             'document' : fields['DCF'].strip(), 'version' : 4 }
 
 
   def _decodeBarcode_v5(self, fields, issueIdentifier):
@@ -1074,10 +1090,10 @@ if __name__ == '__main__':
     while charbuffer[-2:] != '\r\n':
       char = ser.read(1)
       charbuffer += char
-    #try:
-    print "Got string: " + charbuffer + "\n\n\n\n"
-    pprint.pprint(parser.decode(str(charbuffer)))
-    #except ReadError:
-      #print "Parse error. Try again"
+    try:
+      print "Got string: " + charbuffer + "\n\n\n\n"
+      pprint.pprint(parser.decode(str(charbuffer)))
+    except ReadError:
+      print "Parse error. Try again"
 
   ser.close()
