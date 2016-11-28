@@ -87,10 +87,11 @@ PDF_ENTRIES = range(1, 100) #decimal number of subfile identifiers
 
 
 class AAMVA:
-  def __init__(self, data=None, format=[ANY]):
+  def __init__(self, data=None, format=[ANY], strict=True):
     self.format = format
     assert not isinstance(format, str)
     self.data = data
+    self.strict = strict
 
   def decode(self, data=None):
     """
@@ -146,9 +147,11 @@ class AAMVA:
     assert '$' in name_pre, "Name field missing delimiter ($)"
     #entire name field is 35 characters with delimiters
     name = name_pre.split('$')
+    middle = None
+    if len(name) == 3:
+      middle = name[2]
 
     remaining = remaining.split('?')[1:3] #remove prepended end sentinel
-    print remaining[0]
 
     #track 2 start sentinel character
     assert remaining[0][0] == ';', "Missing track 2 start sentinel (;)"
@@ -185,21 +188,24 @@ class AAMVA:
     hair = track3[37:40]
     eyes = track3[40:43]
 
-    assert 'F' in sex or 'M' in sex, "Invalid sex"
+    #assert 'F' in sex or 'M' in sex, "Invalid sex %s" % sex
     assert height.isdigit() or height == '', "Invalid height"
     assert weight.isdigit() or weight == '', "Invalid weight"
-    assert hair in HAIRCOLOURS, "Invalid hair colour"
-    assert eyes in EYECOLOURS, "Invalid eye colour"
+    #assert hair in HAIRCOLOURS, "Invalid hair colour %s" % hair
+    #assert eyes in EYECOLOURS, "Invalid eye colour %s" % eyes
 
     #Since there's no way to determine if a magstripe is for USA or
     #Canada, we'll just have to set a default and assume units:
     #cast weight to Weight() type:
-    weight = Weight(None, int(weight), 'USA')
+    if weight != '':
+      weight = Weight(None, int(weight), 'USA')
+    else:
+      weight == None
     #cast height (Also assumes no one is taller than 9'11"
     height = Height((int(height[0])*12)+int(height[1:]), 'USA')
 
     return { 'first' : name[1], 'last' : name[0],
-             'middle' : name[2], 'city' : city, 'state' : state,
+             'middle' : middle, 'city' : city, 'state' : state,
              'address' : address, 'IIN' : issueIdentifier,
              'licenseNumber' : licenseNumber, 'expiry' : expiry,
              'dob' : dob, 'ZIP' : postalCode, 'class' : licenseClass,
