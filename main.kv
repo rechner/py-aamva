@@ -17,14 +17,9 @@
 
             id: top_layout
 
-            BoxLayout:
+            BoxLayoutB:
                 id: left_status
-                canvas:
-                    Color:
-                        rgba: 1, 0, 0, 1
-                    Rectangle:
-                        pos: self.pos
-                        size: self.size
+                bcolor: 1, 1, 1, 1
 
                 Image:
                     id: left_icon
@@ -36,15 +31,15 @@
                 text: 'Age: [b]?[/b]'
                 font_size: 40
                 markup: True
+                #size_hint_y: None
+                #text_size: self.width, None
+                #height: self.texture_size[1]
+                #text_size: self.size
 
-            BoxLayout:
+            BoxLayoutB:
                 id: right_status
-                canvas:
-                    Color:
-                        rgba: 1, 0, 0, 1
-                    Rectangle:
-                        pos: self.pos
-                        size: self.size
+                bcolor: 1, 1, 1, 1
+
                 Image:
                     id: right_icon
                     source: 'img/smoking.png'
@@ -59,8 +54,15 @@
             Label:
                 markup: True
                 id: status_low
-                text: 'Status'
+                text: 'Scan License now'
                 font_size: 40
 
 
-
+<BoxLayoutB>:
+    bcolor: 1, 1, 1, 1
+    canvas.before:
+        Color:
+            rgba: self.bcolor
+        Rectangle:
+            pos: self.pos
+            size: self.size
