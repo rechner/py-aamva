@@ -49,6 +49,19 @@ class MagstripeTestMethods(unittest.TestCase):
         self.assertEqual(data['IIN'], '636010')
         self.assertEqual(data['dob'], datetime.date(1987, 1, 1))
         self.assertEqual(data['expiry'], datetime.date(2021, 1, 31))
+        
+    def test_fl2(self):
+        parser = aamva.AAMVA()
+
+        data = parser.decode(Magstripe.fl2)
+        self.assertEqual(data['first'], 'ROMAN')
+        self.assertEqual(data['last'], 'JURKOV')
+        self.assertEqual(data['state'], 'FL')
+        self.assertEqual(data['address'], '4818 N CLASSICAL BLVD')
+        self.assertEqual(data['city'], 'DELRAY BEACH')
+        self.assertEqual(data['IIN'], '636010')
+        self.assertEqual(data['dob'], datetime.date(1987, 1, 1))
+        self.assertEqual(data['expiry'], datetime.date(2021, 1, 31))
 
 if __name__ == '__main__':
     unittest.main()
