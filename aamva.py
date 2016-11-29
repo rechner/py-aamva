@@ -227,9 +227,9 @@ class AAMVA:
       log("RECORDSEP (0x1E) missing, got FS instead (0x1C, SCDMV)")
       #segterm = '\x0a' # Have to override to work with SC old format
     else:
-      assert data[2] == PDF_RECORDSEP, 'Missing record separator (RS)'
+      assert data[2] == PDF_RECORDSEP, 'Missing record separator (RS) got (%s)' % repr(data[2])
     assert data[3] == PDF_SEGTERM, 'Missing segment terminator (CR)'
-    assert data[4:9] == PDF_FILETYPE, \
+    assert (data[4:9] == PDF_FILETYPE) or (data[4:9] == 'AAMVA'), \
       'Wrong file type (got "%s", should be "ANSI ")' % data[4:9]
     issueIdentifier = data[9:15]
     assert issueIdentifier.isdigit(), 'Issue Identifier is not an integer'
@@ -254,6 +254,9 @@ class AAMVA:
       offset = data[21:25]
       assert offset.isdigit(), 'Subfile offset is not an integer'
       offset = int(offset)
+      # FIXME Either MD or SC is off-by-one on this part of the standard
+      if issueIdentifier == '636003':
+        offset += 1
       length = data[25:29]
       assert length.isdigit(), 'Subfile length is not an integer'
       length = int(length)
@@ -295,7 +298,7 @@ class AAMVA:
       #parse subfile designators
       readOffset = 0
       recordType = None
-      import pdb; pdb.set_trace()
+      #import pdb; pdb.set_trace()
 
       for fileId in range(nEntries):
         #Read each subfile designator
@@ -337,14 +340,14 @@ class AAMVA:
     # FIXME: Munging record separator here
     # should probably give subfiles their own encapsulation treatment to better match
     # format of barcode and allow for duplicate subfile fields
-    parsedData = [ i.strip('\n') for i in parsedData ] #remove trailing \n's
+    #parsedData = [ i.strip('\n') for i in parsedData ] #remove trailing \n's
     parsedData = "".join(parsedData)
 
     log(parsedData)
     subfile = parsedData.split(PDF_LINEFEED)
     if debug: pprint.pprint(subfile)
 
-    assert subfile[0][:2] == 'DL', "Not a driver's license"
+    assert subfile[0][:2] == 'DL', "Not a driver's license (Got '%s', should be 'DL')" % subfile[0][:2]
     subfile[0] = subfile[0][2:] #remove prepended "DL"
     subfile[-1] = subfile[-1].strip(segterm)
     #Decode fields as a dictionary
