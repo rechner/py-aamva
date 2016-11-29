@@ -1,0 +1,66 @@
+<RootWidget>:
+    vlayout: vlayout
+
+    BoxLayout:
+        status: status
+        top_layout: top_layout
+        low_layout: low_layout
+
+        id: vlayout
+        orientation: 'vertical'
+
+        BoxLayout:
+            status: status
+            left_icon: left_icon
+            left_status: left_status
+            right_status: right_status
+
+            id: top_layout
+
+            BoxLayout:
+                id: left_status
+                canvas:
+                    Color:
+                        rgba: 1, 0, 0, 1
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+
+                Image:
+                    id: left_icon
+                    source: 'img/martini.png'
+
+
+            Label:
+                id: status
+                text: 'Age: [b]?[/b]'
+                font_size: 40
+                markup: True
+
+            BoxLayout:
+                id: right_status
+                canvas:
+                    Color:
+                        rgba: 1, 0, 0, 1
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+                Image:
+                    id: right_icon
+                    source: 'img/smoking.png'
+
+        BoxLayout:
+            status: status_low
+
+            id: low_layout
+            orientation: 'horizontal'
+            
+
+            Label:
+                markup: True
+                id: status_low
+                text: 'Status'
+                font_size: 40
+
+
+
