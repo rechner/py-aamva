@@ -47,7 +47,7 @@
 
 import datetime
 
-debug = True
+debug = False
 
 if debug: import pprint
 
@@ -950,6 +950,10 @@ class Height:
     else:
       return int(round(self.height * 2.54)) #convert to inches
 
+  def __eq__(self, other):
+    if other.units == self.units:
+      return self.height == other.height
+
   def __repr__(self):
     return "%s(%s, format='%s')" % (self.__class__.__name__, \
       self.height, self.format)
@@ -1063,6 +1067,14 @@ class Weight:
       else:
         return IMPERIAL_WEIGHTS[self.weightRange]
 
+  def __eq__(self, other):
+    if other is None:
+      return False
+    if self.units == other.units:
+      return self.weight == other.weight
+    else:
+      return self.weightRange == other.weightRange
+  
   #Not sure why you'd ever need to do this
   def __add__(self, other):
     if self.units == METRIC:
