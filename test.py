@@ -33,6 +33,11 @@ class Magstripe:
 
 class BarcodeTestMethods(unittest.TestCase):
 
+    def test_aamva_v1(self):
+        parser = aamva.AAMVA()
+        data = parser._decodeBarcode(PDF417.aamva_v1)
+        pprint.pprint(data)
+
     def test_va(self):
         parser = aamva.AAMVA()
         data = parser._decodeBarcode(PDF417.va)
@@ -52,7 +57,7 @@ class BarcodeTestMethods(unittest.TestCase):
         self.assertEqual(data['height'], aamva.Height(75, format='USA'))
         self.assertEqual(data['expiry'], datetime.date(2017, 8, 14))
         self.assertEqual(data['issued'], datetime.date(2009, 8, 14))
-        self.assertEqual(data['licenseNumber'], 'T16700185')
+        self.assertEqual(data['license_number'], 'T16700185')
         self.assertEqual(data['restrictions'], '158X9')
         self.assertEqual(data['sex'], 'M')
         self.assertEqual(data['state'], 'VA')
@@ -79,7 +84,7 @@ class BarcodeTestMethods(unittest.TestCase):
         self.assertEqual(data['height'], aamva.Height(64, format='USA'))
         self.assertEqual(data['expiry'], datetime.date(2017, 7, 1))
         self.assertEqual(data['issued'], datetime.date(2012, 7, 1))
-        self.assertEqual(data['licenseNumber'], '123456789')
+        self.assertEqual(data['license_number'], '123456789')
         self.assertEqual(data['restrictions'], 'B')
         self.assertEqual(data['sex'], 'F')
         self.assertEqual(data['state'], 'GA')
@@ -106,12 +111,12 @@ class BarcodeTestMethods(unittest.TestCase):
         self.assertEqual(data['height'], aamva.Height(64, format='USA'))
         self.assertEqual(data['expiry'], datetime.date(2010, 7, 4))
         self.assertEqual(data['issued'], datetime.date(2006, 7, 4))
-        self.assertEqual(data['licenseNumber'], '1234-56-7890')
+        self.assertEqual(data['license_number'], '1234-56-7890')
         self.assertEqual(data['restrictions'], 'X-1X-2X-3X-4')
         self.assertEqual(data['sex'], 'F')
         self.assertEqual(data['state'], 'IN')
         self.assertEqual(data['suffix'], 'XYWXY')
-        self.assertEqual(data['weight'], aamva.Weight(None, 120, 'USA')) 
+        self.assertEqual(data['weight'], aamva.Weight(None, 120, 'USA'))
         pprint.pprint(data)
 
     def test_wa(self):
@@ -133,7 +138,7 @@ class BarcodeTestMethods(unittest.TestCase):
         self.assertEqual(data['height'], aamva.Height(63, format='USA'))
         self.assertEqual(data['expiry'], datetime.date(2014, 11, 4))
         self.assertEqual(data['issued'], datetime.date(2010, 9, 14))
-        self.assertEqual(data['licenseNumber'], 'ANASTPM320QD')
+        self.assertEqual(data['license_number'], 'ANASTPM320QD')
         self.assertEqual(data['restrictions'], 'NONE')
         self.assertEqual(data['sex'], 'F')
         self.assertEqual(data['state'], 'WA')
@@ -160,7 +165,7 @@ class BarcodeTestMethods(unittest.TestCase):
         self.assertEqual(data['height'], aamva.Height(70, format='USA'))
         self.assertEqual(data['expiry'], datetime.date(2013, 3, 10))
         self.assertEqual(data['issued'], datetime.date(2008, 10, 27))
-        self.assertEqual(data['licenseNumber'], 'OREALDD521DS')
+        self.assertEqual(data['license_number'], 'OREALDD521DS')
         self.assertEqual(data['restrictions'], 'NONE')
         self.assertEqual(data['sex'], 'M')
         self.assertEqual(data['state'], 'WA')
@@ -186,7 +191,7 @@ class BarcodeTestMethods(unittest.TestCase):
         #self.assertEqual(data['height'], '600')
         self.assertEqual(data['expiry'], datetime.date(2019, 9, 28))
         self.assertEqual(data['issued'], datetime.date(2009, 10, 26))
-        self.assertEqual(data['licenseNumber'], '102245737')
+        self.assertEqual(data['license_number'], '102245737')
         self.assertEqual(data['restrictions'], '')
         self.assertEqual(data['sex'], 'M')
         self.assertEqual(data['state'], 'SC')

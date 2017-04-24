@@ -47,21 +47,23 @@
 
 import datetime
 
-debug = False
+debug = True
 
 if debug: import pprint
+import test
 
 """ Constants and signals """ #Better way to do this?
 ANY = 0
 MAGSTRIPE = 1
 PDF417 = 2
 SMARTCARD = 4
-METRIC = 8
-IMPERIAL = 16
+METRIC = 'ISO'
+IMPERIAL = 'USA'
 MALE = 'M'
 FEMALE = 'F'
-DRIVER_LICENSE = 128
-IDENTITY_CARD = 256
+UNSPECIFIED = 'U'
+DRIVER_LICENSE = 'DL'
+IDENTITY_CARD = 'ID'
 EYECOLOURS = ['BLK', 'BLU', 'BRO', 'GRY', 'HAZ', 'MAR', 'PNK', 'DIC',
               'UNK', 'GRN']
 HAIRCOLOURS = ['BAL', 'BLK', 'BLN', 'BRO', 'GRY', 'RED', 'SDY', 'WHI',
@@ -207,7 +209,7 @@ class AAMVA:
     return { 'first' : name[1], 'last' : name[0],
              'middle' : middle, 'city' : city, 'state' : state,
              'address' : address, 'IIN' : issueIdentifier,
-             'licenseNumber' : licenseNumber, 'expiry' : expiry,
+             'license_number' : licenseNumber, 'expiry' : expiry,
              'dob' : dob, 'ZIP' : postalCode, 'class' : licenseClass,
              'restrictions' : restrictions,
              'endorsements' : endorsements, 'sex' : sex,
@@ -219,6 +221,9 @@ class AAMVA:
   def _decodeBarcode(self, data):
     #header
     segterm = PDF_SEGTERM
+
+    # strip all before compliance character:
+    data = '@' + '@'.join(data.split('@')[1:])
     #check for compliance character:
     assert data[0] == '@', 'Missing compliance character (@)'
     assert data[1] == PDF_LINEFEED, 'Missing data element separator (LF)'
@@ -238,10 +243,11 @@ class AAMVA:
       'Invalid data version number (got %s, should be 0 - 63)' % version
 
     log("Format version: " + str(version))
-    #import pdb; pdb.set_trace()
 
     parsedData = ""
+    subfiles_raw = []
     revOffset = 0
+
     if version in (0, 1):
       nEntries = data[17:19]
       assert nEntries.isdigit(), 'Number of entries is not an integer'
@@ -249,13 +255,13 @@ class AAMVA:
       log("Entries: " + str(nEntries))
       #subfile designator
       # FIXME could also be 'ID'
-      assert data[19:21] == 'DL', \
+      assert (data[19:21] == 'DL' or data[19:21] == 'ID'), \
         "Not a driver's license (Got '%s', should be 'DL')" % data[19:21]
       offset = data[21:25]
       assert offset.isdigit(), 'Subfile offset is not an integer'
       offset = int(offset)
       # FIXME Either MD or SC is off-by-one on this part of the standard
-      if issueIdentifier == '636003':
+      if issueIdentifier in ('636005'):
         offset += 1
       length = data[25:29]
       assert length.isdigit(), 'Subfile length is not an integer'
@@ -263,10 +269,16 @@ class AAMVA:
       decodeFunction = self._decodeBarcode_v1
 
       #parse subfile designators
-      readOffset = 0
-      recordType = None
+      readOffset = 10
+      recordType = data[19:21]
+      beginning = data[offset:offset+length].strip('\r')
+      if not beginning.startswith(recordType):
+        beginning = recordType + beginning
 
-      for fileId in range(nEntries):
+      subfiles_raw.append(beginning)
+
+      #parse subfile designators
+      for fileId in range(nEntries-1):
         #Read each subfile designator
         log("=== Subfile {0} ===".format(fileId))
         if recordType is None: #Subfile type determines document type
@@ -275,17 +287,16 @@ class AAMVA:
         length = data[readOffset+25:readOffset+29]
         assert offset.isdigit(), 'Subfile offset is not an integer'
         assert length.isdigit(), 'Subfile length is not an integer'
-        offset = int(offset) - 1
+        offset = int(offset)
         length = int(length) +2
         log("Offset: {0}".format(offset))
         log("Length: {0}".format(length))
-        parsedData += data[offset:offset+length] #suck in all of record
+        subfiles_raw.append(data[offset:offset+length])  #suck in all of record
         log(data[offset:offset+length])
         log("=== End Subfile ===")
         readOffset += 10
 
-
-    elif version in (2, 3, 4, 5, 6):
+    elif version in (2, 3, 4, 5, 6, 7, 8, 9):
       #version 2 and later add a jurisdiction field
       jurisdictionVersion = data[17:19]
       assert jurisdictionVersion.isdigit(), \
@@ -298,7 +309,6 @@ class AAMVA:
       #parse subfile designators
       readOffset = 0
       recordType = None
-      #import pdb; pdb.set_trace()
 
       for fileId in range(nEntries):
         #Read each subfile designator
@@ -313,7 +323,7 @@ class AAMVA:
         length = int(length)
         log("Offset: {0}".format(offset))
         log("Length: {0}".format(length))
-        parsedData += data[offset:offset+length]  #suck in all of record
+        subfiles_raw.append(data[offset:offset+length])  #suck in all of record
         log(data[offset:offset+length])
         log("=== End Subfile ===")
         readOffset += 10
@@ -333,21 +343,23 @@ class AAMVA:
       if version == 4: decodeFunction = self._decodeBarcode_v4
       if version == 5: decodeFunction = self._decodeBarcode_v5
       if version == 6: decodeFunction = self._decodeBarcode_v6
+      if version == 7: decodeFunction = self._decodeBarcode_v8 #FIXME: Seems to only be optional field changes
+      if version == 8: decodeFunction = self._decodeBarcode_v8
+      if version == 9: decodeFunction = self._decodeBarcode_v9
 
     #Seperate out subfiles, removing trailing empty list
-    parsedData = parsedData.split(segterm)[:-1]
+    parsedData = '\n'.join(subfiles_raw)
+    parsedData.strip('\n')
+    parsedData = parsedData.split(segterm)
 
-    # FIXME: Munging record separator here
-    # should probably give subfiles their own encapsulation treatment to better match
-    # format of barcode and allow for duplicate subfile fields
-    #parsedData = [ i.strip('\n') for i in parsedData ] #remove trailing \n's
     parsedData = "".join(parsedData)
 
     log(parsedData)
     subfile = parsedData.split(PDF_LINEFEED)
     if debug: pprint.pprint(subfile)
 
-    assert subfile[0][:2] == 'DL', "Not a driver's license (Got '%s', should be 'DL')" % subfile[0][:2]
+    assert subfile[0][:2] == 'DL' or subfile[0][:2] == 'ID',\
+      "Not a driver's license (Got '%s', should be 'DL')" % subfile[0][:2]
     subfile[0] = subfile[0][2:] #remove prepended "DL"
     subfile[-1] = subfile[-1].strip(segterm)
     #Decode fields as a dictionary
@@ -355,7 +367,7 @@ class AAMVA:
 
     try:
       return decodeFunction(fields, issueIdentifier)
-    except UnboundLocalError as e:
+    except UnboundLocalError:
       raise NotImplemented("ERROR: Version {0} decoding not implemented!".format(version))
 
 
@@ -364,6 +376,7 @@ class AAMVA:
     pass #TODO
 
   def _decodeBarcode_v1(self, fields, issueIdentifier):
+    warnings = []
     #Version 1 (AAMVA DL/ID-2000 standard)
     try: #Prefer the optional, field-seperated values
       name = []
@@ -393,10 +406,12 @@ class AAMVA:
     assert 'F' in sex or 'M' in sex, "Invalid sex"
 
     #Optional fields:
+    country = "USA"
     try:
         height = fields['DAV'] #Prefer metric units OPTIONAL 42
         weight = fields['DAX'] #OPTIONAL 43
         units = METRIC
+        country = "CAN"
     except KeyError:
       try:
         height = fields['DAU'] #U.S. imperial units OPTIONAL 20
@@ -418,25 +433,70 @@ class AAMVA:
       hair = None
       eyes = None
 
+    address2 = None #(OPTIONAL 2009 a.)
+    if 'DAH' in fields.keys():
+      address2 = fields['DAH'].strip()
+
     #assert hair in HAIRCOLOURS, "Invalid hair colour"
     #assert eyes in EYECOLOURS, "Invalid eye colour"
 
-    return { 'first' : name[1], 'last' : name[0],
-             'middle' : name[2], 'city' : fields['DAI'], #REQUIRED 3
-             'state' : fields['DAJ'], #REQUIRED 4
-             'address' : fields['DAG'], 'IIN' : issueIdentifier, #REQUIRED 2
-             'licenseNumber' : fields['DAQ'], 'expiry' : expiry, #REQUIRED 6
-             'dob' : dob, 'ZIP' : fields['DAK'].strip(), #REQUIRED 5
-             'class' : fields['DAR'].strip(), #REQUIRED 8
-             'restrictions' : fields['DAS'].strip(), #REQUIRED 9
-             'endorsements' : fields['DAT'].strip(), 'sex' : sex, #REQUIRED 10
-             'height' : height, 'weight' : weight, 'hair' : hair,
-             'eyes' : eyes, 'units' : units, 'issued' : issued,
-             'suffix' : nameSuffix, 'prefix' : namePrefix}
+    # MD doesn't always encode restrictions (2015 license):
+    try:
+      restrictions = fields['DAS'].strip()
+    except:
+      restrictions = None
+      warnings.append("Missing required field: restrictions (DAS)")
+    try:
+      endorsements = fields['DAT'].strip()
+      card_type = "DL"
+    except:
+      restrictions = None
+      card_type = "ID"
+      warnings.append("Missing required field: endorsements (DAT)")
+
+    # Middle name not always encoded, or comma skipped:
+    if len(name) == 2:
+      name.append(None)
+
+    arrival_dates = {}
+
+    rv = {
+      'first' : name[1].strip(),
+      'last' : name[0].strip(),
+      'middle' : name[2],
+      'address' : fields['DAG'].strip(),
+      'address2' : address2,
+      'city' : fields['DAI'].strip(),
+      'state' : fields['DAJ'].strip(),
+      'country' : country,
+      'ZIP' : fields['DAK'].strip(),
+      'IIN' : issueIdentifier,
+      'license_number' : fields['DAQ'].strip(),
+      'expiry' : expiry,
+      'dob' : dob,
+      'class' : fields['DAR'].strip(),
+      'restrictions' : restrictions,
+      'endorsements' : endorsements,
+      'sex' : sex,
+      'height' : height,
+      'weight' : weight,
+      'hair' : hair,
+      'eyes' : eyes,
+      'units' : units,
+      'issued' : issued,
+      'suffix' : nameSuffix,
+      'prefix' : namePrefix,
+      'document' : None,
+      'arrival_dates' : arrival_dates,
+      'card_type' : card_type,
+      'version' : 1,
+      'standards' : (len(warnings) == 0), 'warnings' : warnings
+    }
+    return rv
 
 
   def _decodeBarcode_v3(self, fields, issueIdentifier):
-
+    warnings = []
     if debug: pprint.pprint(fields)
     #required fields
     country = fields['DCG'] #USA or CAN
@@ -454,13 +514,13 @@ class AAMVA:
       vehicleClass = fields['DCA'].strip()
       restrictions = fields['DCB'].strip()
       endorsements = fields['DCD'].strip()
-      cardType = DRIVER_LICENSE
+      card_type = DRIVER_LICENSE
     except KeyError:
       #not a DL, use None instead
       vehicleClass = None
       restrictions = None
       endorsements = None
-      cardType = IDENTITY_CARD
+      card_type = IDENTITY_CARD
 
     #Physical description
     sex = fields['DBC']
@@ -509,7 +569,7 @@ class AAMVA:
         hair = None
 
     #name suffix optional. No prefix field in this version.
-    try: nameSuffix = fields['DCU']
+    try: nameSuffix = fields['DCU'].strip()
     except KeyError: nameSuffix = None
 
     #Try weight range
@@ -529,38 +589,66 @@ class AAMVA:
 
     #Abstract the name field:
     names = fields['DCT'].split(',')
-    firstName = names[0].strip()
+    firstname = names[0].strip()
     if len(names) == 1: #No middle name
-      middleName = None
+      middlename = None
     else:
-      middleName = ', '.join(names[1:]).strip()
+      middlename = ', '.join(names[1:]).strip()
 
     #Indiana, again, uses spaces instead
     if ',' not in fields['DCT']:
       names = fields['DCT'].split(' ')
-      firstName = names[0].strip()
+      firstname = names[0].strip()
       if len(names) == 1:
-        middleName = None
+        middlename = None
       else:
-        middleName = ' '.join(names[1:]).strip()
+        middlename = ' '.join(names[1:]).strip()
 
+    address2 = None #(OPTIONAL 2009 a.)
+    if 'DAH' in fields.keys():
+      address2 = fields['DAH'].strip()
 
-    return { 'first' : firstName, 'last' : fields['DCS'].strip(),
-             'middle' : middleName, 'city' : fields['DAI'].strip(),
-             'state' : fields['DAJ'].strip(), 'country' : country.strip(),
-             'address' : fields['DAG'].strip(), 'IIN' : issueIdentifier.strip(),
-             'licenseNumber' : fields['DAQ'].strip(), 'expiry' : expiry,
-             'dob' : dob, 'ZIP' : fields['DAK'].strip(),
-             'class' : vehicleClass, 'restrictions' : restrictions,
-             'endorsements' : endorsements, 'sex' : sex,
-             'height' : height, 'weight' : weight, 'hair' : hair,
-             'eyes' : eyes, 'units' : units, 'issued' : issued,
-             'suffix' : nameSuffix, 'prefix' : None,
-             'document' : fields['DCF'].strip() }
+    arrival_dates = {}
 
+    lastname = fields['DCS'].strip()   #(REQUIRED 2005 e)
+
+    rv = {
+      'first' : firstname,
+      'last' : lastname,
+      'middle' : middlename,
+      'address' : fields['DAG'].strip(),
+      'address2' : address2,
+      'city' : fields['DAI'].strip(),
+      'state' : fields['DAJ'].strip(),
+      'country' : country,
+      'ZIP' : fields['DAK'].strip(),
+      'IIN' : issueIdentifier,
+      'license_number' : fields['DAQ'].strip(),
+      'expiry' : expiry,
+      'dob' : dob,
+      'class' : vehicleClass,
+      'restrictions' : restrictions,
+      'endorsements' : endorsements,
+      'sex' : sex,
+      'height' : height,
+      'weight' : weight,
+      'hair' : hair,
+      'eyes' : eyes,
+      'units' : units,
+      'issued' : issued,
+      'suffix' : nameSuffix,
+      'prefix' : None,
+      'document' : fields['DCF'].strip(),  # Mandatory 2005 q.
+      'arrival_dates' : arrival_dates,
+      'card_type' : card_type,
+      'version' : 3,
+      'standards' : (len(warnings) == 0), 'warnings' : warnings
+    }
+    return rv
 
 
   def _decodeBarcode_v4(self, fields, issueIdentifier):
+    warnings = []
     #required fields
     country = fields['DCG'] #USA or CAN
 
@@ -577,13 +665,13 @@ class AAMVA:
       vehicleClass = fields['DCA'].strip()
       restrictions = fields['DCB'].strip()
       endorsements = fields['DCD'].strip()
-      cardType = DRIVER_LICENSE
+      card_type = DRIVER_LICENSE
     except KeyError:
       #not a DL, use None instead
       vehicleClass = None
       restrictions = None
       endorsements = None
-      cardType = IDENTITY_CARD
+      card_type = IDENTITY_CARD
 
     #Physical description
     sex = fields['DBC']
@@ -631,33 +719,68 @@ class AAMVA:
       except KeyError:
         weight = None
 
-    #Hair/eye colour are mandatory
-    hair = fields['DAZ']
-    eyes = fields['DAY']
-    assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(hair)
-    assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(eyes)
+    #Hair/eye colour are mandatory, but some (NJ) don't encode hair colour
+    try:
+      hair = fields['DAZ']
+      assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(hair)
+    except KeyError:
+      hair = None
+      warnings.append('Missing field: hair colour (DAZ)')
+    try:
+      eyes = fields['DAY']
+      assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(eyes)
+    except KeyError:
+      eyes = None
+      warnings.append('Missing field: hair colour (DAZ)')
 
     #name suffix optional. No prefix field in this version.
     try: nameSuffix = fields['DCU'].strip()
     except KeyError: nameSuffix = None
 
-    first = fields['DAC'].strip()
+    address2 = None #(OPTIONAL 2009 a.)
+    if 'DAH' in fields.keys():
+      address2 = fields['DAH'].strip()
 
-    return { 'first' : fields['DAC'], 'last' : fields['DCS'],
-             'middle' : fields['DAD'], 'city' : fields['DAI'],
-             'state' : fields['DAJ'], 'country' : country,
-             'address' : fields['DAG'], 'IIN' : issueIdentifier,
-             'licenseNumber' : fields['DAQ'].strip(), 'expiry' : expiry,
-             'dob' : dob, 'ZIP' : fields['DAK'].strip(),
-             'class' : vehicleClass, 'restrictions' : restrictions,
-             'endorsements' : endorsements, 'sex' : sex,
-             'height' : height, 'weight' : weight, 'hair' : hair,
-             'eyes' : eyes, 'units' : units, 'issued' : issued,
-             'suffix' : nameSuffix, 'prefix' : None,
-             'document' : fields['DCF'].strip(), 'version' : 4 }
+    lastname = fields['DCS'].strip()   #(REQUIRED 2005 e)
+    firstname = fields['DAC'].strip()  #(REQUIRED 2005 f)
+    arrival_dates = {}
+
+    rv = {
+      'first' : fields['DAC'].strip(),
+      'last' : fields['DCS'].strip(),
+      'middle' : fields['DAD'].strip(),
+      'address' : fields['DAG'].strip(),
+      'address2' : address2,
+      'city' : fields['DAI'].strip(),
+      'state' : fields['DAJ'].strip(),
+      'country' : country,
+      'IIN' : issueIdentifier,
+      'license_number' : fields['DAQ'].strip(),
+      'expiry' : expiry,
+      'dob' : dob, 'ZIP' : fields['DAK'].strip(),
+      'class' : vehicleClass,
+      'restrictions' : restrictions,
+      'endorsements' : endorsements,
+      'sex' : sex,
+      'height' : height,
+      'weight' : weight,
+      'hair' : hair,
+      'eyes' : eyes,
+      'units' : units,
+      'issued' : issued,
+      'suffix' : nameSuffix,
+      'prefix' : None,  # Removed from this version
+      'document' : fields['DCF'].strip(),
+      'arrival_dates' : arrival_dates,
+      'card_type' : card_type,
+      'version' : 4,
+      'standards' : (len(warnings) == 0), 'warnings' : warnings
+    }
+    return rv
 
 
   def _decodeBarcode_v5(self, fields, issueIdentifier):
+    warnings = []
     #required fields
     country = fields['DCG'] #USA or CAN
 
@@ -675,13 +798,13 @@ class AAMVA:
       vehicleClass = fields['DCA'].strip()
       restrictions = fields['DCB'].strip()
       endorsements = fields['DCD'].strip()
-      cardType = DRIVER_LICENSE
+      card_type = DRIVER_LICENSE
     except KeyError:
       #not a DL, use None instead
       vehicleClass = None
       restrictions = None
       endorsements = None
-      cardType = IDENTITY_CARD
+      card_type = IDENTITY_CARD
 
     #Physical description
     sex = fields['DBC']
@@ -729,38 +852,65 @@ class AAMVA:
     assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(hair)
 
     #name suffix optional. No prefix field in this version.
-    try: nameSuffix = fields['DCU']
+    try: nameSuffix = fields['DCU'].strip()
     except KeyError: nameSuffix = None
 
     # v5 adds optional date fields DDH, DDI, and DDJ (Under 18/19/21 until)
     arrival_dates = {}
-    #arrival_dates['under_18_until'] = _parseDate(fields['DDH'])
-    #arrival_dates['under_19_until'] = _parseDate(fields['DDI'])
-    #arrival_dates['under_21_until'] = _parseDate(fields['DDJ'])
+    if 'DDH' in fields.keys():
+      arrival_dates['under_18_until'] = _parseDate(fields['DDH'])
+    if 'DDI' in fields.keys():
+      arrival_dates['under_19_until'] = _parseDate(fields['DDI'])
+    if 'DDJ' in fields.keys():
+      arrival_dates['under_21_until'] = _parseDate(fields['DDJ'])
 
-    return { 'first' : fields['DAC'], 'last' : fields['DCS'],
-             'middle' : fields['DAD'], 'city' : fields['DAI'],
-             'state' : fields['DAJ'], 'country' : country,
-             'address' : fields['DAG'], 'IIN' : issueIdentifier,
-             'licenseNumber' : fields['DAQ'].strip(), 'expiry' : expiry,
-             'dob' : dob, 'ZIP' : fields['DAK'].strip(),
-             'class' : vehicleClass, 'restrictions' : restrictions,
-             'endorsements' : endorsements, 'sex' : sex,
-             'height' : height, 'weight' : weight, 'hair' : hair,
-             'eyes' : eyes, 'units' : units, 'issued' : issued,
-             'suffix' : nameSuffix, 'prefix' : None,
-             'document' : fields['DCF'].strip(),
-             'arrival_dates' : arrival_dates }
+    address2 = None #(OPTIONAL 2009 a.)
+    if 'DAH' in fields.keys():
+      address2 = fields['DAH'].strip()
+
+    rv = {
+      'first' : fields['DAC'].strip(),
+      'last' : fields['DCS'].strip(),
+      'middle' : fields['DAD'].strip(),
+      'address' : fields['DAG'].strip(),
+      'address2' : address2,
+      'city' : fields['DAI'].strip(),
+      'state' : fields['DAJ'].strip(),
+      'country' : country,
+      'IIN' : issueIdentifier,
+      'license_number' : fields['DAQ'].strip(),
+      'expiry' : expiry,
+      'dob' : dob, 'ZIP' : fields['DAK'].strip(),
+      'class' : vehicleClass,
+      'restrictions' : restrictions,
+      'endorsements' : endorsements,
+      'sex' : sex,
+      'height' : height,
+      'weight' : weight,
+      'hair' : hair,
+      'eyes' : eyes,
+      'units' : units,
+      'issued' : issued,
+      'suffix' : nameSuffix,
+      'prefix' : None,
+      'document' : fields['DCF'].strip(),
+      'arrival_dates' : arrival_dates,
+      'card_type' : card_type,
+      'version' : 5,
+      'standards' : (len(warnings) == 0), 'warnings' : warnings
+    }
+    return rv
 
 
   def _decodeBarcode_v6(self, fields, issueIdentifier): # 2011 standard
+    warnings = []
     #required fields
     country = fields['DCG'] #USA or CAN
 
     # 2011 e, f, g, are required name fields
-    lastname = fields['DCS']   #(REQUIRED 2011 e)
-    firstname = fields['DAC']  #(REQUIRED 2011 f)
-    middlename = fields['DAD'] #(REQUIRED 2011 g)
+    lastname = fields['DCS'].strip()   #(REQUIRED 2011 e)
+    firstname = fields['DAC'].strip()  #(REQUIRED 2011 f)
+    middlename = fields['DAD'].strip() #(REQUIRED 2011 g)
 
     # 2011 t, u, and v indicate if names are truncated:
     if fields['DDE'] == 'T':
@@ -784,13 +934,13 @@ class AAMVA:
       vehicleClass = fields['DCA'].strip() #(REQUIRED 2011 a.)
       restrictions = fields['DCB'].strip() #(REQUIRED 2011 b.)
       endorsements = fields['DCD'].strip() #(REQUIRED 2011 c.)
-      cardType = DRIVER_LICENSE
+      card_type = DRIVER_LICENSE
     except KeyError:
       #not a DL, use None instead
       vehicleClass = None
       restrictions = None
       endorsements = None
-      cardType = IDENTITY_CARD
+      card_type = IDENTITY_CARD
 
     #Physical description
     sex = fields['DBC'] #(REQUIRED 2011 j.)
@@ -841,7 +991,7 @@ class AAMVA:
     #optional fields:
     address2 = None #(OPTIONAL 2011 a.)
     if 'DAH' in fields.keys():
-      address2 = fields['DAH']
+      address2 = fields['DAH'].strip()
 
     hair = None #(OPTIONAL 2011 b.)
     if 'DAZ' in fields.keys():
@@ -851,7 +1001,7 @@ class AAMVA:
     #TODO: OPTIONAL 2011 fields c - h
 
     #name suffix optional. No prefix field in this version.
-    try: nameSuffix = fields['DCU'] #(OPTIONAL 2011 i.)
+    try: nameSuffix = fields['DCU'].strip() #(OPTIONAL 2011 i.)
     except KeyError: nameSuffix = None
 
     #TODO: OPTIONAL 2011 fields j - u
@@ -867,20 +1017,334 @@ class AAMVA:
 
     #TODO: OPTIONAL 2011 field a.a.
 
-    return { 'first' : firstname, 'last' : lastname,
-             'middle' : middlename, 'city' : fields['DAI'],
-             'state' : fields['DAJ'], 'country' : country,
-             'address' : fields['DAG'], 'IIN' : issueIdentifier,
-             'licenseNumber' : fields['DAQ'].strip(), 'expiry' : expiry,
-             'dob' : dob, 'ZIP' : fields['DAK'].strip(),
-             'class' : vehicleClass, 'restrictions' : restrictions,
-             'endorsements' : endorsements, 'sex' : sex,
-             'height' : height, 'weight' : weight, 'hair' : hair,
-             'eyes' : eyes, 'units' : units, 'issued' : issued,
-             'suffix' : nameSuffix, 'prefix' : None,
-             'document' : fields['DCF'].strip(),
-             'arrival_dates' : arrival_dates }
+    rv = {
+      'first' : firstname,
+      'last' : lastname,
+      'middle' : middlename,
+      'address' : fields['DAG'].strip(),
+      'address2' : address2,
+      'city' : fields['DAI'].strip(),
+      'state' : fields['DAJ'].strip(),
+      'country' : country,
+      'IIN' : issueIdentifier,
+      'license_number' : fields['DAQ'].strip(),
+      'expiry' : expiry,
+      'dob' : dob, 'ZIP' : fields['DAK'].strip(),
+      'class' : vehicleClass,
+      'restrictions' : restrictions,
+      'endorsements' : endorsements,
+      'sex' : sex,
+      'height' : height,
+      'weight' : weight,
+      'hair' : hair,
+      'eyes' : eyes,
+      'units' : units,
+      'issued' : issued,
+      'suffix' : nameSuffix,
+      'prefix' : None,
+      'document' : fields['DCF'].strip(),
+      'arrival_dates' : arrival_dates,
+      'card_type' : card_type,
+      'version' : 7,
+      'standards' : (len(warnings) == 0), 'warnings' : warnings
+    }
+    return rv
 
+  def _decodeBarcode_v8(self, fields, issueIdentifier): # 2013 standard
+    warnings = []
+    #required fields
+    country = fields['DCG'] #USA or CAN
+
+    # 2013 e, f, g, are required name fields
+    lastname = fields['DCS'].strip()   #(REQUIRED 2013 e)
+    firstname = fields['DAC'].strip()  #(REQUIRED 2013 f)
+    middlename = fields['DAD'].strip() #(REQUIRED 2013 g)
+
+    # 2013 t, u, and v indicate if names are truncated:
+    if fields['DDE'] == 'T':
+      lastname += "…"
+    if fields['DDF'] == 'T':
+      firstname += "…"
+    if fields['DDG'] == 'T':
+      middlename += "…"
+
+    #convert dates
+    dba = fields['DBA'] #expiry (REQUIRED 2013 d.)
+    expiry = self._parseDate(dba, country)
+    dbd = fields['DBD'] #issue date (REQUIRED 2013 h.)
+    issued = self._parseDate(dbd, country)
+    dbb = fields['DBB'] #date of birth (REQUIRED 2013 i.)
+    dob = self._parseDate(dbb, country)
+
+    #jurisdiction-specific (required for DL only):
+    #FIXME - check if fields are empty
+    try:
+      vehicleClass = fields['DCA'].strip() #(REQUIRED 2013 a.)
+      restrictions = fields['DCB'].strip() #(REQUIRED 2013 b.)
+      endorsements = fields['DCD'].strip() #(REQUIRED 2013 c.)
+      card_type = DRIVER_LICENSE
+    except KeyError:
+      #not a DL, use None instead
+      vehicleClass = None
+      restrictions = None
+      endorsements = None
+      card_type = IDENTITY_CARD
+
+    #Physical description
+    sex = fields['DBC'] #(REQUIRED 2013 j.)
+    assert sex in '12', "Invalid sex"
+    if sex == '1': sex = MALE
+    if sex == '2': sex = FEMALE
+
+    eyes = fields['DAY'] #(REQUIRED 2013 k.)
+    assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(hair)
+
+    height = fields['DAU'] #(REQUIRED 2013 l.)
+    if height[-2:] == 'in': #inches
+      height = int(height[0:3])
+      units = IMPERIAL
+      height = Height(height, format='USA')
+    elif height[-2:].lower() == 'cm': #metric
+      height = int(height[0:3])
+      units = METRIC
+      height = Height(height)
+    else:
+      raise AssertionError("Invalid unit for height")
+
+    # 2013 m, n, o, p, are required address elements
+
+
+    #weight is optional
+    if units == METRIC:
+      try: weight = Weight(None, int(fields['DAX']))
+      except KeyError:
+        weight = None
+    elif units == IMPERIAL:
+      try:
+        weight = Weight(None, int(fields['DAW']), 'USA')
+      except KeyError:
+        weight = None
+    if weight == None:
+      #Try weight range
+      try:
+        weight = fields['DCE']
+        if units == METRIC:
+          weight = Weight(int(weight), format='ISO')
+        elif units == IMPERIAL:
+          weight = Weight(int(weight), format='USA')
+      except KeyError:
+        weight = None
+
+
+    #optional fields:
+    address2 = None #(OPTIONAL 2013 a.)
+    if 'DAH' in fields.keys():
+      address2 = fields['DAH'].strip()
+
+    hair = None #(OPTIONAL 2013 b.)
+    if 'DAZ' in fields.keys():
+      hair = fields['DAZ'] #Optional
+      assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(hair)
+
+    #TODO: OPTIONAL 2013 fields c - h
+
+    #name suffix optional. No prefix field in this version.
+    try: nameSuffix = fields['DCU'].strip() #(OPTIONAL 2013 i.)
+    except KeyError: nameSuffix = None
+
+    #TODO: OPTIONAL 2013 fields j - u
+
+    # v6 adds optional date fields DDH, DDI, and DDJ (Under 18/19/21 until)
+    arrival_dates = {}
+    if 'DDH' in fields.keys():
+      arrival_dates['under_18_until'] = _parseDate(fields['DDH'])
+    if 'DDI' in fields.keys():
+      arrival_dates['under_19_until'] = _parseDate(fields['DDI'])
+    if 'DDJ' in fields.keys():
+      arrival_dates['under_21_until'] = _parseDate(fields['DDJ'])
+
+    #TODO: OPTIONAL 2013 field a.a.
+
+    rv = {
+      'first' : firstname,
+      'last' : lastname,
+      'middle' : middlename,
+      'address' : fields['DAG'].strip(),
+      'address2' : address2,
+      'city' : fields['DAI'].strip(),
+      'state' : fields['DAJ'].strip(),
+      'country' : country,
+      'IIN' : issueIdentifier,
+      'license_number' : fields['DAQ'].strip(),
+      'expiry' : expiry,
+      'dob' : dob, 'ZIP' : fields['DAK'].strip(),
+      'class' : vehicleClass,
+      'restrictions' : restrictions,
+      'endorsements' : endorsements,
+      'sex' : sex,
+      'height' : height,
+      'weight' : weight,
+      'hair' : hair,
+      'eyes' : eyes,
+      'units' : units,
+      'issued' : issued,
+      'suffix' : nameSuffix,
+      'prefix' : None,
+      'document' : fields['DCF'].strip(),
+      'arrival_dates' : arrival_dates,
+      'card_type' : card_type,
+      'version' : 8,
+      'standards' : (len(warnings) == 0), 'warnings' : warnings
+    }
+    return rv
+
+  def _decodeBarcode_v9(self, fields, issueIdentifier): # 2016 standard
+    warnings = []
+    #Add: "unspecified" sex option
+    #required fields
+    country = fields['DCG'] #USA or CAN
+
+    # 2016 e, f, g, are required name fields
+    lastname = fields['DCS'].strip()   #(REQUIRED 2016 e)
+    firstname = fields['DAC'].strip()  #(REQUIRED 2016 f)
+    middlename = fields['DAD'].strip() #(REQUIRED 2016 g)
+
+    # 2016 t, u, and v indicate if names are truncated:
+    if fields['DDE'] == 'T':
+      lastname += "…"
+    if fields['DDF'] == 'T':
+      firstname += "…"
+    if fields['DDG'] == 'T':
+      middlename += "…"
+
+    #convert dates
+    dba = fields['DBA'] #expiry (REQUIRED 2016 d.)
+    expiry = self._parseDate(dba, country)
+    dbd = fields['DBD'] #issue date (REQUIRED 2016 h.)
+    issued = self._parseDate(dbd, country)
+    dbb = fields['DBB'] #date of birth (REQUIRED 2016 i.)
+    dob = self._parseDate(dbb, country)
+
+    #jurisdiction-specific (required for DL only):
+    #FIXME - check if fields are empty
+    try:
+      vehicleClass = fields['DCA'].strip() #(REQUIRED 2016 a.)
+      restrictions = fields['DCB'].strip() #(REQUIRED 2016 b.)
+      endorsements = fields['DCD'].strip() #(REQUIRED 2016 c.)
+      card_type = DRIVER_LICENSE
+    except KeyError:
+      #not a DL, use None instead
+      vehicleClass = None
+      restrictions = None
+      endorsements = None
+      card_type = IDENTITY_CARD
+
+    #Physical description
+    sex = fields['DBC'] #(REQUIRED 2016 j.)
+    assert sex in '129', "Invalid sex"
+    if sex == '1': sex = MALE
+    if sex == '2': sex = FEMALE
+    if sex == '9': sex = UNSPECIFIED
+
+    eyes = fields['DAY'] #(REQUIRED 2016 k.)
+    assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(hair)
+
+    height = fields['DAU'] #(REQUIRED 2016 l.)
+    if height[-2:] == 'in': #inches
+      height = int(height[0:3])
+      units = IMPERIAL
+      height = Height(height, format='USA')
+    elif height[-2:].lower() == 'cm': #metric
+      height = int(height[0:3])
+      units = METRIC
+      height = Height(height)
+    else:
+      raise AssertionError("Invalid unit for height")
+
+    # 2016 m, n, o, p, are required address elements
+
+    #weight is optional
+    if units == METRIC:
+      try: weight = Weight(None, int(fields['DAX']))
+      except KeyError:
+        weight = None
+    elif units == IMPERIAL:
+      try:
+        weight = Weight(None, int(fields['DAW']), 'USA')
+      except KeyError:
+        weight = None
+    if weight == None:
+      #Try weight range
+      try:
+        weight = fields['DCE']
+        if units == METRIC:
+          weight = Weight(int(weight), format='ISO')
+        elif units == IMPERIAL:
+          weight = Weight(int(weight), format='USA')
+      except KeyError:
+        weight = None
+
+    #optional fields:
+    address2 = None #(OPTIONAL 2016 a.)
+    if 'DAH' in fields.keys():
+      address2 = fields['DAH'].strip()
+
+    hair = None #(OPTIONAL 2016 b.)
+    if 'DAZ' in fields.keys():
+      hair = fields['DAZ'] #Optional
+      assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(hair)
+
+    #TODO: OPTIONAL 2013 fields c - h
+
+    #name suffix optional. No prefix field in this version.
+    try: nameSuffix = fields['DCU'].strip() #(OPTIONAL 2016 i.)
+    except KeyError: nameSuffix = None
+
+    #TODO: OPTIONAL 2016 fields j - u
+
+    # v6 adds optional date fields DDH, DDI, and DDJ (Under 18/19/21 until)
+    arrival_dates = {}
+    if 'DDH' in fields.keys():
+      arrival_dates['under_18_until'] = _parseDate(fields['DDH'])
+    if 'DDI' in fields.keys():
+      arrival_dates['under_19_until'] = _parseDate(fields['DDI'])
+    if 'DDJ' in fields.keys():
+      arrival_dates['under_21_until'] = _parseDate(fields['DDJ'])
+
+    #TODO: OPTIONAL 2016 field a.a.
+
+    rv = {
+      'first' : firstname,
+      'last' : lastname,
+      'middle' : middlename,
+      'address' : fields['DAG'].strip(),
+      'address2' : address2,
+      'city' : fields['DAI'].strip(),
+      'state' : fields['DAJ'].strip(),
+      'country' : country,
+      'IIN' : issueIdentifier,
+      'license_number' : fields['DAQ'].strip(),
+      'expiry' : expiry,
+      'dob' : dob, 'ZIP' : fields['DAK'].strip(),
+      'class' : vehicleClass,
+      'restrictions' : restrictions,
+      'endorsements' : endorsements,
+      'sex' : sex,
+      'height' : height,
+      'weight' : weight,
+      'hair' : hair,
+      'eyes' : eyes,
+      'units' : units,
+      'issued' : issued,
+      'suffix' : nameSuffix,
+      'prefix' : None,
+      'document' : fields['DCF'].strip(),
+      'arrival_dates' : arrival_dates,
+      'card_type' : card_type,
+      'version' : 9,
+      'standards' : (len(warnings) == 0), 'warnings' : warnings
+    }
+    return rv
 
 
   def _parseDate(self, date, format='ISO'):
@@ -1074,7 +1538,7 @@ class Weight:
       return self.weight == other.weight
     else:
       return self.weightRange == other.weightRange
-  
+
   #Not sure why you'd ever need to do this
   def __add__(self, other):
     if self.units == METRIC:
@@ -1094,6 +1558,11 @@ if __name__ == '__main__':
   import pprint
 
   parser = AAMVA()
+
+  pprint.pprint(parser.decode(test.PDF417.aamva_v1))
+  pprint.pprint(parser.decode(test.PDF417.sc))
+
+  exit()
 
   #~ while True:
     #~ try: #Reading from an HID card reader (stdin)
