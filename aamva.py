@@ -47,7 +47,7 @@
 
 import datetime
 
-debug = True
+debug = False
 
 if debug: import pprint
 import test
@@ -87,6 +87,75 @@ PDF_FILETYPE = 'ANSI ' # identifies the file as an AAMVA compliant
 PDF_VERSIONS = range(64) # decimal between 0 - 63
 PDF_ENTRIES = range(1, 100) #decimal number of subfile identifiers
 
+ISSUERS = {
+  636033 : 'Alabama',
+  646059 : 'Alaska',
+  604427 : 'American Samoa',
+  636026 : 'Arizona',
+  636021 : 'Arkansas',
+  636028 : 'British Columbia',
+  636014 : 'California',
+  636056 : 'Caohulia',
+  636020 : 'Colorado',
+  636006 : 'Connecticut',
+  636043 : 'District of Columbia',
+  636011 : 'Delaware',
+  636010 : 'Florida',
+  636055 : 'Georgia',
+  636019 : 'Guam',
+  636047 : 'Hawaii',
+  636056 : 'Hidalgo',
+  636050 : 'Idaho',
+  636035 : 'Illinois',
+  636037 : 'Indiana',
+  636018 : 'Iowa',
+  636022 : 'Kansas',
+  636046 : 'Kentucky',
+  636007 : 'Louisiana',
+  636041 : 'Maine',
+  636048 : 'Manitoba',
+  636003 : 'Maryland',
+  636002 : 'Massachusetts',
+  636032 : 'Michigan',
+  636038 : 'Minnesota',
+  636051 : 'Mississippi',
+  636030 : 'Missouri',
+  636008 : 'Montana',
+  636054 : 'Nebraska',
+  636049 : 'Nevada',
+  636017 : 'New Brunswick',
+  636039 : 'New Hampshire',
+  636036 : 'New Jersey',
+  636009 : 'New Mexico',
+  636001 : 'New York',
+  636016 : 'Newfoundland',
+  636004 : 'North Carolina',
+  636034 : 'North Dakota',
+  636013 : 'Nova Scotia',
+  636023 : 'Ohio',
+  636058 : 'Oklahoma',
+  636012 : 'Ontario',
+  636029 : 'Oregon',
+  636025 : 'Pennsylvania',
+  604426 : 'Prince Edward Island',
+  604428 : 'Quebec',
+  636052 : 'Rhode Island',
+  636044 : 'Saskatchewan',
+  636005 : 'South Carolina',
+  636042 : 'South Dakota',
+  636053 : 'Tennessee',
+  636027 : 'State Department (USA)',
+  636015 : 'Texas',
+  636062 : 'US Virgin Islands',
+  636040 : 'Utah',
+  636024 : 'Vermont',
+  636000 : 'Virginia',
+  636045 : 'Washington',
+  636061 : 'West Virginia',
+  636031 : 'Wisconsin',
+  636060 : 'Wyoming',
+  604429 : 'Yukon'
+}
 
 class AAMVA:
   def __init__(self, data=None, format=[ANY], strict=True):
@@ -426,6 +495,17 @@ class AAMVA:
       assert height.isdigit() or height is not None, "Invalid height"
       assert weight.isdigit() or height is not None, "Invalid weight"
 
+    #weight is optional
+    if units == METRIC:
+      try: weight = Weight(None, int(fields['DAX']))
+      except KeyError:
+        weight = None
+    elif units == IMPERIAL:
+      try:
+        weight = Weight(None, int(fields['DAW']), 'USA')
+      except KeyError:
+        weight = None
+
     try:
       hair = fields['DAZ'].strip()
       eyes = fields['DAY'].strip()
@@ -722,16 +802,18 @@ class AAMVA:
     #Hair/eye colour are mandatory, but some (NJ) don't encode hair colour
     try:
       hair = fields['DAZ']
-      assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(hair)
+      if hair not in HAIRCOLOURS:
+        warnings.append("Invalid hair colour: {0}".format(hair))
     except KeyError:
       hair = None
-      warnings.append('Missing field: hair colour (DAZ)')
+      warnings.append('Missing mandatory field: hair colour (DAZ)')
     try:
       eyes = fields['DAY']
-      assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(eyes)
+      if eyes not in EYECOLOURS:
+        warnings.append("Invalid eye colour: {0}".format(eyes))
     except KeyError:
       eyes = None
-      warnings.append('Missing field: hair colour (DAZ)')
+      warnings.append('Missing mandatory field: hair colour (DAZ)')
 
     #name suffix optional. No prefix field in this version.
     try: nameSuffix = fields['DCU'].strip()
@@ -1559,11 +1641,6 @@ if __name__ == '__main__':
 
   parser = AAMVA()
 
-  pprint.pprint(parser.decode(test.PDF417.aamva_v1))
-  pprint.pprint(parser.decode(test.PDF417.sc))
-
-  exit()
-
   #~ while True:
     #~ try: #Reading from an HID card reader (stdin)
       #~ pprint.pprint(parser.decode(raw_input("Swipe a card")))
@@ -1573,7 +1650,7 @@ if __name__ == '__main__':
 
   #reading from a serial barcode reader
   import serial
-  ser = serial.Serial('/dev/ttyUSB0')
+  ser = serial.Serial('/dev/ttyACM0')
   while True:
     charbuffer = ""
     print "Scan a license"
@@ -1581,9 +1658,10 @@ if __name__ == '__main__':
       char = ser.read(1)
       charbuffer += char
     try:
-      print "Got string: " + charbuffer + "\n\n\n\n"
-      pprint.pprint(parser.decode(str(charbuffer)))
-    except ReadError:
+      print "Got string: " + repr(charbuffer) + "\n\n\n\n"
+      pprint.pprint(parser._decodeBarcode(str(charbuffer)))
+    except Exception as e:
       print "Parse error. Try again"
+      print e
 
   ser.close()

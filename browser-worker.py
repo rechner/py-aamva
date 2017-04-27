@@ -1,11 +1,28 @@
 #!/usr/bin/env python
 #*-* coding: utf-8 *-*
 
+import sys
 import wx
 import threading
 import serial
+from datetime import date
+import webbrowser
+import urllib
+from nameparser import HumanName
 
 import aamva
+
+
+BASE_URL = "http://dawningbrooke.net/apis/admin/registration/attendeeonsite/add/"
+SERIAL_DEVICE = "/dev/ttyACM0"
+
+if len(sys.argv) == 3:
+    BASE_URL = sys.argv[1]
+    SERIAL_DEVICE = sys.argv[2]
+else:
+    print "Usage: {} <Base Add URL> <Serial port>".format(sys.argv[0])
+    print "Using defaults:\n  URL: {}\n  Port: {}\n".format(BASE_URL, SERIAL_DEVICE)
+
 
 def xstr(s):
     return '' if s is None else str(s)
@@ -155,7 +172,7 @@ class AAMVATestFrame(wx.Frame):
         #Start serial thread
         self.THREAD_EXIT_SIGNAL = threading.Event()
         self.thread = threading.Thread(target=self._serialWorkerThread,
-                         args=('/dev/ttyACM0',))
+                         args=(SERIAL_DEVICE,))
         self.thread.start()
 
 
@@ -230,6 +247,12 @@ class AAMVATestFrame(wx.Frame):
         dlg.ShowModal()
         dlg.Destroy()
 
+    def InfoMessage(self, message):
+        dlg = wx.MessageDialog(self.panel, message,
+                'APIS Information', wx.OK | wx.ICON_WARNING)
+        dlg.ShowModal()
+        dlg.Destroy()
+
     def ProcessScan(self, evt):
         print "Got a scan!"
 
@@ -239,6 +262,29 @@ class AAMVATestFrame(wx.Frame):
             #GUI interaction must be done in a thread-safe way
             wx.CallAfter(self.ErrorMessage, 'Invalid data.\n{0}'.format(e))
             return
+
+        name = HumanName("{} {}".format(xstr(license['first']).lower(), xstr(license['last']).lower()))
+        name.capitalize()
+
+        query = {
+            'firstName' : name.first,
+            'lastName' : name.last,
+            'address1' : license['address'],
+            'address2' : xstr(license['address2']),
+            'city' : license['city'],
+            'state' : license['state'],
+            'postalCode' : xstr(license['ZIP'])[0:5]+"-"+xstr(license['ZIP'])[5:],
+            'country' : license['country'],
+            'birthdate' : license['dob']
+        }
+
+        params = urllib.urlencode(query)
+
+        if license['expiry'] <= date.today():
+            wx.CallAfter(self.InfoMessage, str('ID expired {}'.format(license['expiry'])))
+            webbrowser.open(BASE_URL + "?" + params, new=0, autoraise=False)
+        else:
+            webbrowser.open(BASE_URL + "?" + params, new=0, autoraise=True)
 
         #clear form
         self.clearForm()
