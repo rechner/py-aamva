@@ -155,7 +155,7 @@ class AAMVATestFrame(wx.Frame):
         #Start serial thread
         self.THREAD_EXIT_SIGNAL = threading.Event()
         self.thread = threading.Thread(target=self._serialWorkerThread,
-                         args=('/dev/ttyACM0',))
+                         args=('/dev/ttyUSB0',))
         self.thread.start()
 
 
@@ -191,13 +191,16 @@ class AAMVATestFrame(wx.Frame):
 
         try:
             ser = None
-            ser = serial.Serial(device, timeout=0.2)
+            #ser = serial.Serial(device, timeout=0.2, baudrate=115200
+            ser = serial.Serial(device, baudrate=115200, dsrdtr=True, rtscts=True)
+            print("Opened serial thread...")
 
             while True:
                 charbuffer = ""
                 #Read data from scanner until we see a \r\n
                 while charbuffer[-2:] != '\r\n':
                     char = ser.read(1) #blocks if no data to read
+                    print(char, end='')
                     charbuffer += char
 
                     #check if we need to close the port:
@@ -231,7 +234,7 @@ class AAMVATestFrame(wx.Frame):
         dlg.Destroy()
 
     def ProcessScan(self, evt):
-        print "Got a scan!"
+        print("Got a scan!")
 
         try:
             license = self.parser.decode(evt.data)

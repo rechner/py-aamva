@@ -84,8 +84,8 @@ PDF_LINEFEED = '\x0A'  # '\n' (line feed)
 PDF_RECORDSEP = '\x1E' # record seperator
 PDF_SEGTERM = '\x0D'   # '\r' segment terminator (carriage return)
 PDF_FILETYPE = 'ANSI ' # identifies the file as an AAMVA compliant
-PDF_VERSIONS = range(64) # decimal between 0 - 63
-PDF_ENTRIES = range(1, 100) #decimal number of subfile identifiers
+PDF_VERSIONS = list(range(64)) # decimal between 0 - 63
+PDF_ENTRIES = list(range(1, 100)) #decimal number of subfile identifiers
 
 ISSUERS = {
   636033 : 'Alabama',
@@ -514,7 +514,7 @@ class AAMVA:
       eyes = None
 
     address2 = None #(OPTIONAL 2009 a.)
-    if 'DAH' in fields.keys():
+    if 'DAH' in list(fields.keys()):
       address2 = fields['DAH'].strip()
 
     #assert hair in HAIRCOLOURS, "Invalid hair colour"
@@ -685,7 +685,7 @@ class AAMVA:
         middlename = ' '.join(names[1:]).strip()
 
     address2 = None #(OPTIONAL 2009 a.)
-    if 'DAH' in fields.keys():
+    if 'DAH' in list(fields.keys()):
       address2 = fields['DAH'].strip()
 
     arrival_dates = {}
@@ -820,7 +820,7 @@ class AAMVA:
     except KeyError: nameSuffix = None
 
     address2 = None #(OPTIONAL 2009 a.)
-    if 'DAH' in fields.keys():
+    if 'DAH' in list(fields.keys()):
       address2 = fields['DAH'].strip()
 
     lastname = fields['DCS'].strip()   #(REQUIRED 2005 e)
@@ -939,15 +939,15 @@ class AAMVA:
 
     # v5 adds optional date fields DDH, DDI, and DDJ (Under 18/19/21 until)
     arrival_dates = {}
-    if 'DDH' in fields.keys():
+    if 'DDH' in list(fields.keys()):
       arrival_dates['under_18_until'] = _parseDate(fields['DDH'])
-    if 'DDI' in fields.keys():
+    if 'DDI' in list(fields.keys()):
       arrival_dates['under_19_until'] = _parseDate(fields['DDI'])
-    if 'DDJ' in fields.keys():
+    if 'DDJ' in list(fields.keys()):
       arrival_dates['under_21_until'] = _parseDate(fields['DDJ'])
 
     address2 = None #(OPTIONAL 2009 a.)
-    if 'DAH' in fields.keys():
+    if 'DAH' in list(fields.keys()):
       address2 = fields['DAH'].strip()
 
     rv = {
@@ -1072,11 +1072,11 @@ class AAMVA:
 
     #optional fields:
     address2 = None #(OPTIONAL 2011 a.)
-    if 'DAH' in fields.keys():
+    if 'DAH' in list(fields.keys()):
       address2 = fields['DAH'].strip()
 
     hair = None #(OPTIONAL 2011 b.)
-    if 'DAZ' in fields.keys():
+    if 'DAZ' in list(fields.keys()):
       hair = fields['DAZ'] #Optional
       assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(hair)
 
@@ -1090,11 +1090,11 @@ class AAMVA:
 
     # v6 adds optional date fields DDH, DDI, and DDJ (Under 18/19/21 until)
     arrival_dates = {}
-    if 'DDH' in fields.keys():
+    if 'DDH' in list(fields.keys()):
       arrival_dates['under_18_until'] = _parseDate(fields['DDH'])
-    if 'DDI' in fields.keys():
+    if 'DDI' in list(fields.keys()):
       arrival_dates['under_19_until'] = _parseDate(fields['DDI'])
-    if 'DDJ' in fields.keys():
+    if 'DDJ' in list(fields.keys()):
       arrival_dates['under_21_until'] = _parseDate(fields['DDJ'])
 
     #TODO: OPTIONAL 2011 field a.a.
@@ -1220,11 +1220,11 @@ class AAMVA:
 
     #optional fields:
     address2 = None #(OPTIONAL 2013 a.)
-    if 'DAH' in fields.keys():
+    if 'DAH' in list(fields.keys()):
       address2 = fields['DAH'].strip()
 
     hair = None #(OPTIONAL 2013 b.)
-    if 'DAZ' in fields.keys():
+    if 'DAZ' in list(fields.keys()):
       hair = fields['DAZ'] #Optional
       assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(hair)
 
@@ -1238,11 +1238,11 @@ class AAMVA:
 
     # v6 adds optional date fields DDH, DDI, and DDJ (Under 18/19/21 until)
     arrival_dates = {}
-    if 'DDH' in fields.keys():
+    if 'DDH' in list(fields.keys()):
       arrival_dates['under_18_until'] = _parseDate(fields['DDH'])
-    if 'DDI' in fields.keys():
+    if 'DDI' in list(fields.keys()):
       arrival_dates['under_19_until'] = _parseDate(fields['DDI'])
-    if 'DDJ' in fields.keys():
+    if 'DDJ' in list(fields.keys()):
       arrival_dates['under_21_until'] = _parseDate(fields['DDJ'])
 
     #TODO: OPTIONAL 2013 field a.a.
@@ -1368,11 +1368,11 @@ class AAMVA:
 
     #optional fields:
     address2 = None #(OPTIONAL 2016 a.)
-    if 'DAH' in fields.keys():
+    if 'DAH' in list(fields.keys()):
       address2 = fields['DAH'].strip()
 
     hair = None #(OPTIONAL 2016 b.)
-    if 'DAZ' in fields.keys():
+    if 'DAZ' in list(fields.keys()):
       hair = fields['DAZ'] #Optional
       assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(hair)
 
@@ -1386,11 +1386,11 @@ class AAMVA:
 
     # v6 adds optional date fields DDH, DDI, and DDJ (Under 18/19/21 until)
     arrival_dates = {}
-    if 'DDH' in fields.keys():
+    if 'DDH' in list(fields.keys()):
       arrival_dates['under_18_until'] = _parseDate(fields['DDH'])
-    if 'DDI' in fields.keys():
+    if 'DDI' in list(fields.keys()):
       arrival_dates['under_19_until'] = _parseDate(fields['DDI'])
-    if 'DDJ' in fields.keys():
+    if 'DDJ' in list(fields.keys()):
       arrival_dates['under_21_until'] = _parseDate(fields['DDJ'])
 
     #TODO: OPTIONAL 2016 field a.a.
@@ -1634,7 +1634,7 @@ class Weight:
 
 def log(string):
   """Barebones logging"""
-  if debug: print string
+  if debug: print(string)
 
 if __name__ == '__main__':
   import pprint
@@ -1653,15 +1653,15 @@ if __name__ == '__main__':
   ser = serial.Serial('/dev/ttyACM0')
   while True:
     charbuffer = ""
-    print "Scan a license"
+    print("Scan a license")
     while charbuffer[-2:] != '\r\n':
       char = ser.read(1)
       charbuffer += char
     try:
-      print "Got string: " + repr(charbuffer) + "\n\n\n\n"
+      print("Got string: " + repr(charbuffer) + "\n\n\n\n")
       pprint.pprint(parser._decodeBarcode(str(charbuffer)))
     except Exception as e:
-      print "Parse error. Try again"
-      print e
+      print("Parse error. Try again")
+      print(e)
 
   ser.close()

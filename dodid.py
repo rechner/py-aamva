@@ -4,7 +4,7 @@
 import datetime
 
 #3 versions in circulation (no version 0?)
-PDF_VERSIONS = range(1, 4)
+PDF_VERSIONS = list(range(1, 4))
 PERSON_DESIGNATOR_TYPES = { 'S' : 'Social Security Number',
   'N' : 'Non-SSN Identifier', 'P' : 'Pre-SSN Identifier',
   'D' : 'Temporary Identifier Number',
@@ -77,28 +77,28 @@ PERSON_ENTITLEMENT_CONDITIONS = {
   '25' : 'Transitional assistance (VSI program)',
   '26' : 'Transitional assistance (composite)',
   '27' : 'Senior Executive Service',
-  '28' : u'Emergency Essential — overseas only',
-  '29' : u'Emergency Essential – CONUS',
-  '30' : u'2 Emergency Essential – CONUS living in quarters, living ' +
+  '28' : 'Emergency Essential — overseas only',
+  '29' : 'Emergency Essential – CONUS',
+  '30' : '2 Emergency Essential – CONUS living in quarters, living ' +
     'on base, and not drawing a basic allowance for quarters',
   '31' : 'Reserve Component TA-120 Reserve Component Transition ' +
     'Assistance TA 120 (Jan 1, 2002 or later)',
   '32' : 'On MSC owned and operated vessels Deployed to foreign ' +
     'countries on Military Sealift Command owned and operated vessels',
   '33' : 'Guard/Reserve Alert Notification Period',
-  '34' : u'Reserve Component TA-180 – 180 days TAMPS for reserve ' +
+  '34' : 'Reserve Component TA-180 – 180 days TAMPS for reserve ' +
     'return from named contingencies (was 60 before Nov 5 2003)',
-  '35' : u'Reserve Component TA-180 – 180 days TAMPS for reserve ' +
+  '35' : 'Reserve Component TA-180 – 180 days TAMPS for reserve ' +
     'return from named contingencies (was 120 before Nov 5 2003)',
-  '36' : u'TA-180 – 180 days TAMP for involuntary separation',
-  '37' : u'TA-180 — 180 days TAMPS for involuntary separation',
+  '36' : 'TA-180 – 180 days TAMP for involuntary separation',
+  '37' : 'TA-180 — 180 days TAMPS for involuntary separation',
   '38' : 'Living in Government Quarters in Guam or Puerto Rico, ' +
     'Living on base and not drawing an allowance for quarters in ' +
     'Guam or Puerto Rico.',
-  '39' : u'Reserve Component TA-180 – TAMP – Mobilized for Contingency',
-  '40' : u'TA – 180 TAMP – SPD Code Separation',
-  '41' : u'TA-180 – TAMP – Stop/Loss Separation',
-  '42' : u'DoD Non-Sponsored Overseas – Foreign Military personnel ' +
+  '39' : 'Reserve Component TA-180 – TAMP – Mobilized for Contingency',
+  '40' : 'TA – 180 TAMP – SPD Code Separation',
+  '41' : 'TA-180 – TAMP – Stop/Loss Separation',
+  '42' : 'DoD Non-Sponsored Overseas – Foreign Military personnel ' +
     'serving OCONUS not sponsored by DoD' }
 PAY_PLAN_CODES = { 'AF' : 'American Family Members',
   'AD' : 'Administratively determined not elsewhere specified',
@@ -278,7 +278,7 @@ class DoD:
       
     #Describes type of Person Identifier
     personDesignator = data[7] #See appendix C (PDF page 58)
-    assert personDesignator in PERSON_DESIGNATOR_TYPES.keys(), \
+    assert personDesignator in list(PERSON_DESIGNATOR_TYPES.keys()), \
       "Invalid person designator type '{0}'".format(personDesignator)
       
     #DEERS-specific ID number
@@ -339,7 +339,7 @@ class DoD:
       
     #Describes type of Person Identifier
     personDesignator = data[7] #See appendix C (PDF page 58)
-    assert personDesignator in PERSON_DESIGNATOR_TYPES.keys(), \
+    assert personDesignator in list(PERSON_DESIGNATOR_TYPES.keys()), \
       "Invalid person designator type '{0}'".format(personDesignator)
       
     #DEERS-specific ID number
@@ -470,12 +470,12 @@ if __name__ == '__main__':
   ser = serial.Serial('/dev/ttyUSB0')
   while True:
     charbuffer = ""
-    print "Scan an ID"
+    print("Scan an ID")
     while charbuffer[-2:] != '\r\n':
       char = ser.read(1)
       charbuffer += char
     #try:
-    print "Got string: " + charbuffer + "\n\n\n\n"
+    print("Got string: " + charbuffer + "\n\n\n\n")
     
     pprint.pprint(decoder._decodeCACBarcode(charbuffer))
     

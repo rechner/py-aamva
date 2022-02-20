@@ -7,7 +7,7 @@ import threading
 import serial
 from datetime import date
 import webbrowser
-import urllib
+import urllib.request, urllib.parse, urllib.error
 from nameparser import HumanName
 
 import aamva
@@ -20,8 +20,8 @@ if len(sys.argv) == 3:
     BASE_URL = sys.argv[1]
     SERIAL_DEVICE = sys.argv[2]
 else:
-    print "Usage: {} <Base Add URL> <Serial port>".format(sys.argv[0])
-    print "Using defaults:\n  URL: {}\n  Port: {}\n".format(BASE_URL, SERIAL_DEVICE)
+    print("Usage: {} <Base Add URL> <Serial port>".format(sys.argv[0]))
+    print("Using defaults:\n  URL: {}\n  Port: {}\n".format(BASE_URL, SERIAL_DEVICE))
 
 
 def xstr(s):
@@ -254,7 +254,7 @@ class AAMVATestFrame(wx.Frame):
         dlg.Destroy()
 
     def ProcessScan(self, evt):
-        print "Got a scan!"
+        print("Got a scan!")
 
         try:
             license = self.parser.decode(evt.data)
@@ -278,7 +278,7 @@ class AAMVATestFrame(wx.Frame):
             'birthdate' : license['dob']
         }
 
-        params = urllib.urlencode(query)
+        params = urllib.parse.urlencode(query)
 
         if license['expiry'] <= date.today():
             wx.CallAfter(self.InfoMessage, str('ID expired {}'.format(license['expiry'])))

@@ -35,7 +35,7 @@ class RootWidget(BoxLayout):
             ser = serial.Serial('/dev/ttyUSB0', timeout=0.5)
         except:
             while True:
-                raw_input()
+                input()
                 if self.stop.is_set():
                     return
                 self.process_scan(test.PDF417.va)
@@ -71,7 +71,7 @@ class RootWidget(BoxLayout):
         expired_text = ""
         if expired:
             expired_text = "[color=#ff0000][b]Expired {0}[/b][/color]\n".format(str(data['expiry']))
-        print data['expiry']
+        print(data['expiry'])
 
         # TODO: Show name fields
 
