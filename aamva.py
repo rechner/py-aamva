@@ -105,7 +105,7 @@ ISSUERS = {
     636055: 'Georgia',
     636019: 'Guam',
     636047: 'Hawaii',
-    636056: 'Hidalgo',
+    636057: 'Hidalgo',
     636050: 'Idaho',
     636035: 'Illinois',
     636037: 'Indiana',
