@@ -8,6 +8,8 @@ import pprint
 
 # Interestingly MD has "AAMVA" filetype instead of ANSI per 2000 and later standard.
 # Reports as version number 1 otherwise
+
+
 class PDF417:
     aamva_v1 = '@\n\x1e\rANSI 6360000102DL00390188ZV02270031DLDAQ0123456789ABC\nDAAPUBLIC,JOHN,Q\nDAG123 MAIN STREET\nDAIANYTOWN\nDAJVA\nDAK123459999  \nDARDM  \nDAS       \nDAT     \nDAU509\nDAW175\nDAYBL \nDAZBR \nDBA20011201\nDBB19761123\nDBCM\nDBD19961201\rZVZVAJURISICTIONDEFINEDELEMENT\r\\928\\111\\100\\180\\605\\739\\922\r\n'
     aamva_v2 = '@\n\x1e\rANSI 6360000102DL00390188ZV02270031DLDAQ0123456789ABC\nDAAPUBLIC,JOHN,Q\nDAG123 MAIN STREET\nDAIANYTOWN\nDAJVA\nDAK123459999  \nDARDM  \nDAS       \nDAT     \nDAU509\nDAW175\nDAYBL \nDAZBR \nDBA20011201\nDBB19761123\nDBCM\nDBD19961201\rZVZVAJURISICTIONDEFINEDELEMENT\r\\928\\111\\100\\180\\605\\739\\922\r\n'
@@ -20,10 +22,11 @@ class PDF417:
     wa_edl = '@\n\x1e\rANSI 636045030002DL00410232ZW02730056DLDCSO REALTEST\nDCTDABE DEE\nDCUV\nDAG2600 MARTIN WAY\nDAIOLYMPIA\nDAJWA\nDAK985060000  \nDCGUSA\nDAQOREALDD521DS\nDCANONE\nDCBNONE\nDCDNONE\nDCFOREALDD521DSL1083014J1459\nDCHNONE\nDBA03102013\nDBB03101948\nDBC1\nDBD10272008\nDAU070 in\nDCE4\nDAYBLU\n\rZWZWAL1083014J1459\nZWB   \nZWC33\nZWD\nZWE\nZWFRev03122007\n\r\r\n'
     ca = ' @\n\x1e\rANSI 636014040002DL00410477ZC05180089DLDAQD1234562 XYXYXYXYXYXYXYXYX\nDCSLASTNAMEXYXYXYXYXYXYXYXYXXYXYXYXYXYXYXYX\nDDEU\nDACFIRSTXYXYXYXYXYXYXYXYXXYXYXYXYXYXYXYXXYX\nDDFU\nDADXYXYXYXYXYXYXYXYXXYXYXYXYXYXYXYXXYXYXYXY\nDDGU\nDCAA XYXY\nDCBNONEY1XY1XY1\nDCDNONEX\nDBD10312009\nDBB10311977\nDBA10312014\nDBC1\nDAU068 IN\nDAYBRO\nDAG1234 ANY STREET XY1XY1XY1XY1XY1XY1X\nDAICITY XY1XY1XY1XY1XY1\nDAJCA\nDAK000000000  \nDCF00/00/0000NNNAN/ANFD/YY X\nDCGUSA\nDCUSUFIX\nDAW150\nDAZBLK XY1XY1XY\nDCKXY1XY1XY1XY1XY1XY1XY1XY1X\nDDAF\nDDBMMDDCCYY\nDDD1\n\rZCZCAY\nZCBCORR LENS\nZCCBRN\nZCDXYX\nZCEXYXYXYXYXYXYXY\nZCFXY1XY1XY1XY1XY1XY1XYXYXYXYXYXYXY\n\r\r\n'
     ny = '@\n\x1e\rANSI 636001070002DL00410392ZN04330047DLDCANONE  \nDCBNONE        \nDCDNONE \nDBA08312013\nDCSMichael                                 \nDACM                                       \nDADMotorist                                \nDBD08312013\nDBB08312013\nDBC1\nDAYBRO\nDAU064 in\nDAG2345 ANYWHERE STREET               \nDAIYOUR CITY           \nDAJNY\nDAK123450000  \nDAQNONE                     \nDCFNONE                     \nDCGUSA\nDDEN\nDDFN\nDDGN\n\rZNZNAMDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5\n\r\r\n'
-    md_aamva = '@\n\x1e\rAAMVA6360030101DL00290192DLDAQK-134-123-145-103\nDAAJOHNSON,JACK,,3RD\nDAG1234 BARNEYS INN PL\nDAIBALTIMORE\nDAJMD\nDAK21230 \nDARC \nDAS \nDAT \nDAU505\nDAW135\nDBA20170209\nDBB19910209\nDBC1\nDBD20120210\nDBHN\r';
+    md_aamva = '@\n\x1e\rAAMVA6360030101DL00290192DLDAQK-134-123-145-103\nDAAJOHNSON,JACK,,3RD\nDAG1234 BARNEYS INN PL\nDAIBALTIMORE\nDAJMD\nDAK21230 \nDARC \nDAS \nDAT \nDAU505\nDAW135\nDBA20170209\nDBB19910209\nDBC1\nDBD20120210\nDBHN\r'
     sc = '@\n\x1c\rANSI 6360050101DL00300201DLDAQ102245737\nDAASAMPLE,DRIVER,CREDENTIAL,\nDAG1500 PARK ST\nDAICOLUMBIA\nDAJSC\nDAK292012731  \nDARD   \nDAS          \nDAT     \nDAU600\nDAW200\nDAY   \nDAZ   \nDBA20190928\nDBB19780928\nDBC1\nDBD20091026\nDBG2\nDBH1\r\r\n'
     oh = "@\n\x1e\rANSI 636023080102DL00410280ZO03210024DLDBA05262020\nDCSLASTNAME\nDACFIRSTNAME\nDADW\nDBD05132016\nDBB05261991\nDBC1\nDAYBLU\nDAU072 IN\nDAG5115 TEST DR\nDAIPENNSITUCKY\nDAJOH\nDAK606061337  \nDAQTG834904\nDCF2520UQ7248040000\nDCGUSA\nDDEN\nDDFN\nDDGN\nDAZBRO\nDCIUS,CALIFORNIA\nDCJNONE\nDCUNONE\nDCE4\nDDAM\nDDB12042013\nDAW170\nDDK1\nDCAD\nDCBB\nDCDNONE\rZOZOAY\nZOBY\nZOE05262020\r"
     oh_missing_record_separator = "@\n\rANSI 636023080102DL00410280ZO03210024DLDBA05262020\nDCSLASTNAME\nDACFIRSTNAME\nDADW\nDBD05132016\nDBB05261991\nDBC1\nDAYBLU\nDAU072 IN\nDAG5115 TEST DR\nDAIPENNSITUCKY\nDAJOH\nDAK606061337  \nDAQTG834904\nDCF2520UQ7248040000\nDCGUSA\nDDEN\nDDFN\nDDGN\nDAZBRO\nDCIUS,CALIFORNIA\nDCJNONE\nDCUNONE\nDCE4\nDDAM\nDDB12042013\nDAW170\nDDK1\nDCAD\nDCBB\nDCDNONE\rZOZOAY\nZOBY\nZOE05262020\r"
+
 
 class Magstripe:
     tx = '%TXAUSTIN^DOE$JOHN^12345 SHERBOURNE ST^?;63601538774194=150819810101?#" 78729      C               1505130BLKBLK?'
@@ -45,7 +48,7 @@ class BarcodeTestMethods(unittest.TestCase):
         self.assertEqual(data['IIN'], '636000')
         self.assertEqual(data['address'], '17 FIRST STREET')
         self.assertEqual(data['city'], 'STAUNTON')
-        self.assertEqual(data['class'] ,'NONE')
+        self.assertEqual(data['class'], 'NONE')
         self.assertEqual(data['dob'], datetime.date(1958, 7, 15))
         self.assertEqual(data['endorsements'], 'S')
         self.assertEqual(data['eyes'], 'BRO')
@@ -62,7 +65,7 @@ class BarcodeTestMethods(unittest.TestCase):
         self.assertEqual(data['sex'], 'M')
         self.assertEqual(data['state'], 'VA')
         self.assertIs(data['suffix'], None)
-        self.assertIs(data['weight'], None) # VA does not encode weight
+        self.assertIs(data['weight'], None)  # VA does not encode weight
         pprint.pprint(data)
 
     def test_ga(self):
@@ -72,7 +75,7 @@ class BarcodeTestMethods(unittest.TestCase):
         self.assertEqual(data['IIN'], '636055')
         self.assertEqual(data['address'], '123 MAIN STREET')
         self.assertEqual(data['city'], 'ANYTOWN')
-        self.assertEqual(data['class'] ,'C')
+        self.assertEqual(data['class'], 'C')
         self.assertEqual(data['dob'], datetime.date(1957, 7, 1))
         self.assertEqual(data['endorsements'], 'NONE')
         self.assertEqual(data['eyes'], 'BLU')
@@ -99,7 +102,7 @@ class BarcodeTestMethods(unittest.TestCase):
         self.assertEqual(data['IIN'], '636037')
         self.assertEqual(data['address'], '123 SAMPLE DRIVE')
         self.assertEqual(data['city'], 'INDIANAPOLIS')
-        self.assertEqual(data['class'] ,'X-1X-2')
+        self.assertEqual(data['class'], 'X-1X-2')
         self.assertEqual(data['dob'], datetime.date(1989, 7, 4))
         self.assertEqual(data['endorsements'], 'X-1XY')
         self.assertEqual(data['eyes'], 'HAZ')
@@ -126,7 +129,7 @@ class BarcodeTestMethods(unittest.TestCase):
         self.assertEqual(data['IIN'], '636045')
         self.assertEqual(data['address'], '2600 MARTIN WAY E')
         self.assertEqual(data['city'], 'OLYMPIA')
-        self.assertEqual(data['class'] ,'NONE')
+        self.assertEqual(data['class'], 'NONE')
         self.assertEqual(data['dob'], datetime.date(1968, 11, 4))
         self.assertEqual(data['endorsements'], 'NONE')
         self.assertEqual(data['eyes'], 'GRN')
@@ -153,7 +156,7 @@ class BarcodeTestMethods(unittest.TestCase):
         self.assertEqual(data['IIN'], '636045')
         self.assertEqual(data['address'], '2600 MARTIN WAY')
         self.assertEqual(data['city'], 'OLYMPIA')
-        self.assertEqual(data['class'] ,'NONE')
+        self.assertEqual(data['class'], 'NONE')
         self.assertEqual(data['dob'], datetime.date(1948, 3, 10))
         self.assertEqual(data['endorsements'], 'NONE')
         self.assertEqual(data['eyes'], 'BLU')
@@ -179,7 +182,7 @@ class BarcodeTestMethods(unittest.TestCase):
         self.assertEqual(data['IIN'], '636005')
         self.assertEqual(data['address'], '1500 PARK ST')
         self.assertEqual(data['city'], 'COLUMBIA')
-        self.assertEqual(data['class'] , 'D')
+        self.assertEqual(data['class'], 'D')
         self.assertEqual(data['dob'], datetime.date(1978, 9, 28))
         self.assertEqual(data['endorsements'], '')
         self.assertEqual(data['eyes'], '')
@@ -198,6 +201,7 @@ class BarcodeTestMethods(unittest.TestCase):
         self.assertIs(data['suffix'], None)
         pprint.pprint(data)
 
+
 class MagstripeTestMethods(unittest.TestCase):
     def test_tx(self):
         parser = aamva.AAMVA()
@@ -209,7 +213,6 @@ class MagstripeTestMethods(unittest.TestCase):
         self.assertEqual(data['IIN'], '636015')
         self.assertEqual(data['dob'], datetime.date(1981, 1, 1))
         self.assertEqual(data['expiry'], datetime.date(2015, 8, 31))
-
 
     def test_fl(self):
         parser = aamva.AAMVA()
@@ -235,6 +238,6 @@ class MagstripeTestMethods(unittest.TestCase):
         self.assertEqual(data['dob'], datetime.date(1987, 1, 1))
         self.assertEqual(data['expiry'], datetime.date(2021, 1, 31))
 
+
 if __name__ == '__main__':
     unittest.main()
-
