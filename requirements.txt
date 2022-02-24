@@ -1,0 +1,4 @@
+healthcards
+requests
+pyserial
+git+https://github.com/smart-on-fhir/client-py.git@16540a46a

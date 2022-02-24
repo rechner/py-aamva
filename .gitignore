@@ -1,3 +1,6 @@
 *.swp
 *.pyc
 __pycache__/
+.idea
+venv/
+vci-issuers.json

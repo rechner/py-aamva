@@ -133,7 +133,7 @@ if __name__ == "__main__":
     if USE_HID:
         hid_dev = hid.Device(vid, pid)
     else:
-        ser = serial.Serial("/dev/ttyACM0", timeout=SERIAL_READ_TIMEOUT)
+        ser = serial.Serial(os.environ.get("SERIAL_DEVICE", "/dev/ttyACM0"), timeout=SERIAL_READ_TIMEOUT)
 
     issuers = Issuers()
     aamva = AAMVA()
