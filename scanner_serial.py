@@ -10,6 +10,7 @@ from fhirclient import models
 from healthcards import parser, cvx
 
 from aamva import AAMVA
+from dodid import DoD
 
 eval_bool = lambda x: x.lower() in ('true', '1', 't', 'y', 'yes')
 
@@ -138,19 +139,21 @@ if __name__ == "__main__":
     if USE_HID:
         hid_dev = hid.Device(vid, pid)
     else:
-        ser = serial.Serial(os.environ.get("SERIAL_DEVICE", "/dev/ttyACM0"), timeout=SERIAL_READ_TIMEOUT)
+        ser = serial.Serial(os.environ.get("SERIAL_DEVICE", "/dev/ttyACM0"), timeout=SERIAL_READ_TIMEOUT, rtscts=True,
+                            dsrdtr=True)
 
     issuers = Issuers()
     aamva = AAMVA()
+    dod_decoder = DoD()
 
     while True:
         try:
             if USE_HID:
-                buffer = blocking_hid_scan(hid_dev)
+                scan_read = blocking_hid_scan(hid_dev)
             else:
-                buffer = read_until_timeout(ser)
-            if buffer:
-                raw_input = buffer.decode("utf-8")
+                scan_read = read_until_timeout(ser)
+            if scan_read:
+                raw_input = scan_read.decode("latin1")
                 if SHC_REGEX.match(raw_input):
                     check_shc(raw_input)
 
@@ -164,5 +167,9 @@ if __name__ == "__main__":
                 else:
                     print(raw_input)
 
+
         except KeyboardInterrupt:
-            ser.close()
+            if USE_HID:
+                hid.close()
+            else:
+                ser.close()
