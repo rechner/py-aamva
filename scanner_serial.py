@@ -122,14 +122,15 @@ def blocking_hid_scan(dev):
     buffer = b""
     count = 0
     while True:
-        read = dev.read(32, timeout=1000)
+        read = dev.read(64, timeout=1000)
         if read:
             if count == 0:
                 buffer += read[3:]
             else:
                 buffer += read[1:]
+            count += 1
 
-        if b"\0" * 8 in buffer[-32:]:
+        if b"\0" * 4 in buffer[-32:]:
             return buffer.strip(b"\0")
 
 
