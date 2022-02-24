@@ -5,8 +5,9 @@ pip install hidapi
 
 import hid
 
-vid = 0x05e0
+vid = 0x05E0
 pid = 0x0600
+
 
 def blocking_scan(dev):
     buffer = b""
@@ -18,10 +19,11 @@ def blocking_scan(dev):
         if b"\r\n" in buffer[-32:]:
             return buffer.strip(b"\0")
 
+
 with hid.Device(vid, pid) as dev:
-    print(f'Device manufacturer: {h.manufacturer}')
-	print(f'Product: {h.product}')
-	print(f'Serial Number: {h.serial}')
+    print(f"Device manufacturer: {dev.manufacturer}")
+    print(f"Product: {dev.product}")
+    print(f"Serial Number: {dev.serial}")
 
     print(hid.enumerate(vid, pid))
 

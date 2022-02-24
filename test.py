@@ -1,7 +1,10 @@
-import unittest
 import datetime
-import aamva
 import pprint
+import unittest
+
+import aamva
+
+
 # Potential other sources for unit tests: https://github.com/c0shea/IdParser/tree/master/IdParser.Tests
 
 # From https://github.com/winfinit/aamvajs/tree/master/test
@@ -35,12 +38,12 @@ class BarcodeTestMethods(unittest.TestCase):
 
     def test_aamva_v1(self):
         parser = aamva.AAMVA()
-        data = parser._decodeBarcode(PDF417.aamva_v1)
+        data = parser.decode_barcode(PDF417.aamva_v1)
         pprint.pprint(data)
 
     def test_va(self):
         parser = aamva.AAMVA()
-        data = parser._decodeBarcode(PDF417.va)
+        data = parser.decode_barcode(PDF417.va)
         self.assertEqual(data['document'], '061234567')
         self.assertEqual(data['IIN'], '636000')
         self.assertEqual(data['address'], '17 FIRST STREET')
@@ -67,7 +70,7 @@ class BarcodeTestMethods(unittest.TestCase):
 
     def test_ga(self):
         parser = aamva.AAMVA()
-        data = parser._decodeBarcode(PDF417.ga)
+        data = parser.decode_barcode(PDF417.ga)
         self.assertEqual(data['document'], '1234509876543210987654321')
         self.assertEqual(data['IIN'], '636055')
         self.assertEqual(data['address'], '123 MAIN STREET')
@@ -94,7 +97,7 @@ class BarcodeTestMethods(unittest.TestCase):
 
     def test_in(self):
         parser = aamva.AAMVA()
-        data = parser._decodeBarcode(PDF417.indiana)
+        data = parser.decode_barcode(PDF417.indiana)
         self.assertEqual(data['document'], '07040602300001')
         self.assertEqual(data['IIN'], '636037')
         self.assertEqual(data['address'], '123 SAMPLE DRIVE')
@@ -121,7 +124,7 @@ class BarcodeTestMethods(unittest.TestCase):
 
     def test_wa(self):
         parser = aamva.AAMVA()
-        data = parser._decodeBarcode(PDF417.wa)
+        data = parser.decode_barcode(PDF417.wa)
         self.assertEqual(data['document'], 'ANASTPM320QDL1102574D1643')
         self.assertEqual(data['IIN'], '636045')
         self.assertEqual(data['address'], '2600 MARTIN WAY E')
@@ -148,7 +151,7 @@ class BarcodeTestMethods(unittest.TestCase):
 
     def test_wa_edl(self):
         parser = aamva.AAMVA()
-        data = parser._decodeBarcode(PDF417.wa_edl)
+        data = parser.decode_barcode(PDF417.wa_edl)
         self.assertEqual(data['document'], 'OREALDD521DSL1083014J1459')
         self.assertEqual(data['IIN'], '636045')
         self.assertEqual(data['address'], '2600 MARTIN WAY')
@@ -175,7 +178,7 @@ class BarcodeTestMethods(unittest.TestCase):
 
     def test_sc(self):
         parser = aamva.AAMVA()
-        data = parser._decodeBarcode(PDF417.sc)
+        data = parser.decode_barcode(PDF417.sc)
         self.assertEqual(data['IIN'], '636005')
         self.assertEqual(data['address'], '1500 PARK ST')
         self.assertEqual(data['city'], 'COLUMBIA')

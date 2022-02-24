@@ -1,27 +1,29 @@
-from kivy.app import App
-from kivy.uix.boxlayout import BoxLayout
-from kivy.clock import mainthread
-from kivy.lang import Builder
-from kivy.graphics import Rectangle
-from kivy.uix.label import Label
-from kivy.properties import ListProperty
-from kivy.factory import Factory
-
-import aamva
 import threading
 import time
-import serial
 from datetime import datetime as date
 
+import serial
+from kivy.app import App
+from kivy.clock import mainthread
+from kivy.factory import Factory
+from kivy.lang import Builder
+from kivy.properties import ListProperty
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.label import Label
+
+import aamva
 import test
 
-Builder.load_file('main.kv')
+Builder.load_file("main.kv")
+
 
 class LabelB(Label):
     bcolor = ListProperty((1, 1, 1, 1))
 
+
 class BoxLayoutB(BoxLayout):
     bcolor = ListProperty((1, 1, 1, 1))
+
 
 class RootWidget(BoxLayout):
     # Use to signal the barcode reader thread that we are exiting
@@ -32,7 +34,7 @@ class RootWidget(BoxLayout):
     def scanner_thread(self):
         ser = None
         try:
-            ser = serial.Serial('/dev/ttyUSB0', timeout=0.5)
+            ser = serial.Serial("/dev/ttyUSB0", timeout=0.5)
         except:
             while True:
                 input()
@@ -44,7 +46,7 @@ class RootWidget(BoxLayout):
 
         while True:
             charbuffer = ""
-            while charbuffer[-2:] != '\r\n':
+            while charbuffer[-2:] != "\r\n":
                 charbuffer += ser.read(1)
                 if self.stop.is_set():
                     ser.close()
@@ -62,16 +64,20 @@ class RootWidget(BoxLayout):
         # TODO: Add exception handling aamva.ReaderError
         # Display message if didn't decode correctly
         data = self.parser.decode(raw)
-        import pprint; pprint.pprint(data)
+        import pprint
 
-        age = self.calculate_age(data['dob'])
+        pprint.pprint(data)
+
+        age = self.calculate_age(data["dob"])
         # TODO: If over 18, show "OVER 18" icon and message
         # (cigarette icon)
-        expired = (self.calculate_age(data['expiry']) > 0)
+        expired = self.calculate_age(data["expiry"]) > 0
         expired_text = ""
         if expired:
-            expired_text = "[color=#ff0000][b]Expired {0}[/b][/color]\n".format(str(data['expiry']))
-        print(data['expiry'])
+            expired_text = "[color=#ff0000][b]Expired {0}[/b][/color]\n".format(
+                str(data["expiry"])
+            )
+        print(data["expiry"])
 
         # TODO: Show name fields
 
@@ -88,14 +94,20 @@ class RootWidget(BoxLayout):
         else:
             self.set_right_color((1, 0, 0, 1))
 
-        self.vlayout.top_layout.status.text = ('{3}[b]Age:[/b] {0}\n\n{1}\n{2}'.format(age, over21_text, over18_text, expired_text))
+        self.vlayout.top_layout.status.text = "{3}[b]Age:[/b] {0}\n\n{1}\n{2}".format(
+            age, over21_text, over18_text, expired_text
+        )
 
-        zipcode = "{0}-{1}".format(data['ZIP'][0:5], data['ZIP'][-4:])
-        status = "[b]Name:[/b] {0}, {1} {2}\n[b]DOB: [/b]{3}\n".format(data['last'][:20], data['first'][:20], data['middle'][:20], data['dob'])
-        status += "[b]Address:[/b]\n    {0}\n    {1}, {2} {3}\n".format(data['address'], data['city'], data['state'], zipcode)
-        status += "[b]Issued:[/b] {0}".format(data['issued'])
+        zipcode = "{0}-{1}".format(data["ZIP"][0:5], data["ZIP"][-4:])
+        status = "[b]Name:[/b] {0}, {1} {2}\n[b]DOB: [/b]{3}\n".format(
+            data["last"][:20], data["first"][:20], data["middle"][:20], data["dob"]
+        )
+        status += "[b]Address:[/b]\n    {0}\n    {1}, {2} {3}\n".format(
+            data["address"], data["city"], data["state"], zipcode
+        )
+        status += "[b]Issued:[/b] {0}".format(data["issued"])
 
-        self.vlayout.low_layout.status.text = (status)
+        self.vlayout.low_layout.status.text = status
 
         self.canvas.ask_update()
 
@@ -115,8 +127,8 @@ class RootWidget(BoxLayout):
         elapsed_years = years_difference - int(is_before_birthday)
         return elapsed_years
 
-class Pyaamvaapp(App):
 
+class Pyaamvaapp(App):
     def on_stop(self):
         self.root.stop.set()
 
@@ -126,8 +138,8 @@ class Pyaamvaapp(App):
         return root
 
 
-#Factory.register('KivyB', module='LabelB')
-Factory.register('KivyB', module='BoxLayoutB')
+# Factory.register('KivyB', module='LabelB')
+Factory.register("KivyB", module="BoxLayoutB")
 
 if __name__ == "__main__":
     Pyaamvaapp().run()
