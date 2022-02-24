@@ -16,8 +16,8 @@ eval_bool = lambda x: x.lower() in ('true', '1', 't', 'y', 'yes')
 SERIAL_READ_TIMEOUT = 1
 USE_HID = os.environ.get("USE_HID", False)
 
-vid = hex(os.environ.get("VID", 0x05E0))
-pid = hex(os.environ.get("PID", 0x0600))
+vid = int(os.environ.get("VID", "0x05E0"), 16)
+pid = int(os.environ.get("PID", "0x0600"), 16)
 
 if USE_HID:
     import hid
@@ -120,10 +120,14 @@ def read_until_timeout(ser):
 
 def blocking_hid_scan(dev):
     buffer = b""
+    count = 0
     while True:
         read = dev.read(32, timeout=1000)
         if read:
-            buffer += read
+            if count == 0:
+                buffer += read[3:]
+            else:
+                buffer += read[1:]
 
         if b"\r\n" in buffer[-32:]:
             return buffer.strip(b"\0")

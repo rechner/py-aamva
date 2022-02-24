@@ -1,6 +1,6 @@
 healthcards
 wheel
-hidapi~=0.11.0.post2
+hid
 pyserial~=3.5
 requests~=2.27.1
 git+https://github.com/smart-on-fhir/client-py.git@16540a46a
