@@ -129,7 +129,7 @@ def blocking_hid_scan(dev):
             else:
                 buffer += read[1:]
 
-        if b"\r\n" in buffer[-32:]:
+        if b"\0" * 8 in buffer[-32:]:
             return buffer.strip(b"\0")
 
 
