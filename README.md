@@ -10,22 +10,16 @@ it is difficult to find very many test cases to validate this with.
 
 Copyright © 2022 Rechner Fox <rechner@totallylegit.agency>
 
-__WARNING__:  Use of the information from machine-legible formats on
-a North-American identification card is subject to compliance with
-18 U.S.C. chapter 123, §2721, available here:
-(http://uscode.house.gov/download/pls/18C123.txt)  The author of this
-code claims no responsibility for it's use contrary to this or any
-later act, law, or jurisdiction.  In most cases you must obtain
-written permission from the license holder to compile or /share/ a 
-database of information obtained from their machine-readable 
-information.  For example, it is legal to make a private database of 
-this information to prevent check fraud or process credit-cards, but
-it may not be used to create a mailing list without permission.  You
-are responsible for maintaining compliance or risk fines of up to
-$5,000 per day of non-compliance in the US.  Individual states may
-have their own restrictions on swiping as well: at the time of 
-writing,  S.B. No. 1445 applies to the state of Texas:
-http://www.legis.state.tx.us/tlodocs/78R/billtext/html/SB01445F.htm
+__WARNING__:  Use of the information from machine-legible formats on a North-American identification card is subject to
+compliance with 18 U.S.C. chapter 123, §2721, available [here](http://uscode.house.gov/download/pls/18C123.txt). The
+author of this code claims no responsibility for its use contrary to this or any later act, law, or jurisdiction. In
+most cases you must obtain written permission from the license holder to compile or /share/ a database of information
+obtained from their machine-readable information. For example, it is legal to make a private database of this
+information to prevent check fraud or process credit-cards, but it may not be used to create a mailing list without
+permission. You are responsible for maintaining compliance or risk fines of up to $5,000 per day of non-compliance in
+the US. Individual states may have their own restrictions on swiping as well: at the time of
+writing,  [S.B. No. 1445 applies to the state of Texas](http://www.legis.state.tx.us/tlodocs/78R/billtext/html/SB01445F.htm)
+.
 
 
 ## License ##
