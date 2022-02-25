@@ -1,13 +1,15 @@
-- Cleanup code and ensure module is python3 compatible
-- Determine final API - what fields will be available to applications using the library. We should standardise on what is available in the most recent standard (2016 - http://www.aamva.org/2016CardDesignStandard/) and work backwards to accomidate older standards (e.g. calculating under 21, under 18, etc dates and boolean flags for cards that do not encode that information).  It is critical we standardise this quickly so that we can begin work on the end demo application.
 - Make strict format checking optional by an instantiation flag [e.g. `AAMVA(strict=False)`]
 - v4: Not all optional subfields are being decoded (DCK, DDA, DDB, DDC, DDD) - [2009 p.60]
 - v5: "
 - FIXME's: check if vechilce-related fields are empty or unset to determine if the card is a DL or ID card
-- Add under 18, under 19, and under 21 boolean flags to all versions calculated from current date. v5 and later should test calculated dates against DDH, DDI, and DDJ respectively, and < v4 should output these calculations in the "arrival_dates" dictionary.
+- Add under 18, under 19, and under 21 boolean flags to all versions calculated from current date. v5 and later should
+  test calculated dates against DDH, DDI, and DDJ respectively, and < v4 should output these calculations in the
+  "arrival_dates" dictionary.
 - Make output accessible by instance attributes (result.header.iin) in addition to dictionary-type access (result['header']['iin'])
 
-- Change intermediary data format from a single dictionary to a structure more representative of the actual records.  The first record must always be DL or ID data, and subsequent records will be jurisdiction-specific. With this in mind, the intermediary format should be as follows (or alternatively, flattened with an ordered dictionary):
+- Change intermediary data format from a single dictionary to a structure more representative of the actual records.
+  The first record must always be DL or ID data, and subsequent records will be jurisdiction-specific. With this in
+  mind, the intermediary format should be as follows (or alternatively, flattened with an ordered dictionary):
 
   [ 
     { 

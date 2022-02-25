@@ -1,9 +1,14 @@
 py-aamva
 ========
 
-A python library for decoding and working with AAMVA-complaint driver's licensees and identity cards.
+A python library for decoding and working with AAMVA-complaint driver's 
+licensees and identity cards, taken from a magstripe or PDF417 barcode
+(or potentially a SmartCard, although no implementations currently exist).
 
-Copyright © 2013 Zachary Sturgeon <jkltechinc@gmail.com>
+Pure python and with no dependencies, though your mileage may vary because
+it is difficult to find very many test cases to validate this with.
+
+Copyright © 2022 Rechner Fox <rechner@totallylegit.agency>
 
 __WARNING__:  Use of the information from machine-legible formats on
 a North-American identification card is subject to compliance with
@@ -22,9 +27,6 @@ have their own restrictions on swiping as well: at the time of
 writing,  S.B. No. 1445 applies to the state of Texas:
 http://www.legis.state.tx.us/tlodocs/78R/billtext/html/SB01445F.htm
 
-TODO: Implement reading in straight from the device instead of just
-keyboard support: http://blog.flip-edesign.com/_rst/MagTek_USB_Card_Reader_Hacking_with_Python.html
-
 
 ## License ##
 This program is free software; you can redistribute it and/or modify
@@ -40,8 +42,4 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-MA 02110-1301, USA. 
-
-Simple class for decoding information from an AMVAA-compliant driver's
-license, either from a magstripe or PDF417 barcode (or potentailly 
-a SmartCard, although no implementations currently exist).
+MA 02110-1301, USA.

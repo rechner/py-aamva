@@ -8,6 +8,7 @@ import requests
 import serial
 from fhirclient import models
 from healthcards import parser, cvx
+from paho.mqtt import publish as mqtt
 
 from aamva import AAMVA
 from dodid import DoD
@@ -166,7 +167,6 @@ if __name__ == "__main__":
 
                 else:
                     print(raw_input)
-
 
         except KeyboardInterrupt:
             if USE_HID:

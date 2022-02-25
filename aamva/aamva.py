@@ -1,9 +1,6 @@
-#!/usr/bin/env python
-# *-* coding: utf-8 *-*
-
 # aamva.py
 #
-# Copyright © 2013 Zachary Sturgeon <jkltechinc@gmail.com>
+# Copyright © 2022 Rechner Fox <rechner@totallylegit.agency>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -104,6 +101,8 @@ ISSUERS = {
     636033: "Alabama",
     646059: "Alaska",
     604427: "American Samoa",
+    604430: "Northern Marianna Islands",
+    604433: "Nunavut",
     636026: "Arizona",
     636021: "Arkansas",
     636028: "British Columbia",
@@ -117,7 +116,7 @@ ISSUERS = {
     636055: "Georgia",
     636019: "Guam",
     636047: "Hawaii",
-    636056: "Hidalgo",
+    636057: "Hidalgo",
     636050: "Idaho",
     636035: "Illinois",
     636037: "Indiana",
@@ -1259,7 +1258,7 @@ class AAMVA:
             sex = FEMALE
 
         eyes = fields["DAY"]  # (REQUIRED 2013 k.)
-        assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(eye)
+        assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(eyes)
 
         height = fields["DAU"]  # (REQUIRED 2013 l.)
         if height[-2:] == "in":  # inches
@@ -1286,7 +1285,7 @@ class AAMVA:
                 weight = Weight(None, int(fields["DAW"]), "USA")
             except KeyError:
                 weight = None
-        if weight == None:
+        if weight is None:
             # Try weight range
             try:
                 weight = fields["DCE"]
