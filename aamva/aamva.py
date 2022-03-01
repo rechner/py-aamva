@@ -665,6 +665,8 @@ class AAMVA:
             sex = MALE
         if sex == "2":
             sex = FEMALE
+        if sex == "9":
+            sex = NOT_SPECIFIED
 
         # Some v.03 barcodes (Indiana) [wrongly, and stupidly] omit
         # the mandatory height (DAU) field.
