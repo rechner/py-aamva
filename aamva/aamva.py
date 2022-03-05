@@ -281,8 +281,8 @@ class AAMVA:
         eyes = track3[40:43]
 
         # assert 'F' in sex or 'M' in sex, "Invalid sex %s" % sex
-        assert height.isdigit() or height == "", "Invalid height"
-        assert weight.isdigit() or weight == "", "Invalid weight"
+        #assert height.isdigit() or height == "", "Invalid height"
+        #assert weight.isdigit() or weight == "", "Invalid weight"
         # assert hair in HAIRCOLOURS, "Invalid hair colour %s" % hair
         # assert eyes in EYECOLOURS, "Invalid eye colour %s" % eyes
 
@@ -482,9 +482,9 @@ class AAMVA:
         if debug:
             pprint.pprint(subfile)
 
-        assert subfile[0][:2] == "DL" or subfile[0][:2] == "ID", (
-            "Not a driver's license (Got '%s', should be 'DL')" % subfile[0][:2]
-        )
+        #assert subfile[0][:2] == "DL" or subfile[0][:2] == "ID", (
+        #    "Not a driver's license (Got '%s', should be 'DL')" % subfile[0][:2]
+        #)
         subfile[0] = subfile[0][2:]  # remove prepended "DL"
         subfile[-1] = subfile[-1].strip(segterm)
         # Decode fields as a dictionary
@@ -549,8 +549,9 @@ class AAMVA:
                 weight = None
                 units = None
         finally:
-            assert height.isdigit() or height is not None, "Invalid height"
-            assert weight.isdigit() or height is not None, "Invalid weight"
+            pass
+            #assert height.isdigit() or height is not None, "Invalid height"
+            #assert weight.isdigit() or height is not None, "Invalid weight"
 
         # weight is optional
         if units == METRIC:
@@ -685,7 +686,8 @@ class AAMVA:
                 units = METRIC
                 height = Height(height)
             else:
-                raise AssertionError("Invalid unit for height")
+                height = None
+                #raise AssertionError("Invalid unit for height")
         except KeyError:
             try:  # Indiana puts it in the jurisdiction field ZIJ
                 height = fields["ZIJ"].split("-")
@@ -848,7 +850,8 @@ class AAMVA:
             units = IMPERIAL
             height = Height(height, format="USA")
         else:
-            raise AssertionError("Invalid unit for height")
+            height = None
+            #raise AssertionError("Invalid unit for height")
 
         # weight is optional
         if units == METRIC:
@@ -984,7 +987,8 @@ class AAMVA:
             units = METRIC
             height = Height(height)
         else:
-            raise AssertionError("Invalid unit for height")
+            height = None
+            #raise AssertionError("Invalid unit for height")
 
         # weight is optional
         if units == METRIC:
@@ -1009,10 +1013,10 @@ class AAMVA:
                 weight = None
 
         # Hair/eye colour are mandatory
-        hair = fields["DAZ"]
-        eyes = fields["DAY"]
-        assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(eyes)
-        assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(hair)
+        hair = fields.get("DAZ")
+        eyes = fields.get("DAY")
+        #assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(eyes)
+        #assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(hair)
 
         # name suffix optional. No prefix field in this version.
         try:
@@ -1131,7 +1135,8 @@ class AAMVA:
             units = METRIC
             height = Height(height)
         else:
-            raise AssertionError("Invalid unit for height")
+            height = None
+            #raise AssertionError("Invalid unit for height")
 
         # 2011 m, n, o, p, are required address elements
 
@@ -1180,11 +1185,11 @@ class AAMVA:
         # v6 adds optional date fields DDH, DDI, and DDJ (Under 18/19/21 until)
         arrival_dates = {}
         if "DDH" in list(fields.keys()):
-            arrival_dates["under_18_until"] = self._parseDate(fields["DDH"])
+            arrival_dates["under_18_until"] = self._parse_date(fields["DDH"])
         if "DDI" in list(fields.keys()):
-            arrival_dates["under_19_until"] = self._parseDate(fields["DDI"])
+            arrival_dates["under_19_until"] = self._parse_date(fields["DDI"])
         if "DDJ" in list(fields.keys()):
-            arrival_dates["under_21_until"] = self._parseDate(fields["DDJ"])
+            arrival_dates["under_21_until"] = self._parse_date(fields["DDJ"])
 
         # TODO: OPTIONAL 2011 field a.a.
 
@@ -1286,7 +1291,8 @@ class AAMVA:
             units = METRIC
             height = Height(height)
         else:
-            raise AssertionError("Invalid unit for height")
+            height = None
+            #raise AssertionError("Invalid unit for height")
 
         # 2013 m, n, o, p, are required address elements
 
@@ -1335,11 +1341,11 @@ class AAMVA:
         # v6 adds optional date fields DDH, DDI, and DDJ (Under 18/19/21 until)
         arrival_dates = {}
         if "DDH" in list(fields.keys()):
-            arrival_dates["under_18_until"] = self._parseDate(fields["DDH"])
+            arrival_dates["under_18_until"] = self._parse_date(fields["DDH"])
         if "DDI" in list(fields.keys()):
-            arrival_dates["under_19_until"] = self._parseDate(fields["DDI"])
+            arrival_dates["under_19_until"] = self._parse_date(fields["DDI"])
         if "DDJ" in list(fields.keys()):
-            arrival_dates["under_21_until"] = self._parseDate(fields["DDJ"])
+            arrival_dates["under_21_until"] = self._parse_date(fields["DDJ"])
 
         # TODO: OPTIONAL 2013 field a.a.
 
@@ -1442,7 +1448,8 @@ class AAMVA:
             units = METRIC
             height = Height(height)
         else:
-            raise AssertionError("Invalid unit for height")
+            height = None
+            #raise AssertionError("Invalid unit for height")
 
         # 2016 m, n, o, p, are required address elements
 
@@ -1491,11 +1498,11 @@ class AAMVA:
         # v6 adds optional date fields DDH, DDI, and DDJ (Under 18/19/21 until)
         arrival_dates = {}
         if "DDH" in list(fields.keys()):
-            arrival_dates["under_18_until"] = self._parseDate(fields["DDH"])
+            arrival_dates["under_18_until"] = self._parse_date(fields["DDH"])
         if "DDI" in list(fields.keys()):
-            arrival_dates["under_19_until"] = self._parseDate(fields["DDI"])
+            arrival_dates["under_19_until"] = self._parse_date(fields["DDI"])
         if "DDJ" in list(fields.keys()):
-            arrival_dates["under_21_until"] = self._parseDate(fields["DDJ"])
+            arrival_dates["under_21_until"] = self._parse_date(fields["DDJ"])
 
         # TODO: OPTIONAL 2016 field a.a.
 
