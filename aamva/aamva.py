@@ -58,10 +58,11 @@ METRIC = "ISO"
 IMPERIAL = "USA"
 MALE = "M"
 FEMALE = "F"
-UNSPECIFIED = "U"
+NOT_SPECIFIED = "X"
 DRIVER_LICENSE = "DL"
 IDENTITY_CARD = "ID"
-EYECOLOURS = ["BLK", "BLU", "BRO", "GRY", "HAZ", "MAR", "PNK", "DIC", "UNK", "GRN"]
+EYECOLOURS = ["BLK", "BLU", "BRO", "GRY",
+              "HAZ", "MAR", "PNK", "DIC", "UNK", "GRN"]
 HAIRCOLOURS = ["BAL", "BLK", "BLN", "BRO", "GRY", "RED", "SDY", "WHI", "UNK"]
 # Human-readable weight ranges
 METRIC_WEIGHTS = {
@@ -185,9 +186,9 @@ class AAMVA:
         Note that the issue date is missing from the magstripe encoding, and
         will always be represented by 'None'.
         """
-        if data == None:
+        if data is None:
             data = self.data
-        if data == None:
+        if data is None:
             raise ValueError("No data to parse")
 
         for form in self.format:
@@ -221,7 +222,8 @@ class AAMVA:
             # city+name+address together should be no longer than 77 chars.
             name_pre = fields[0][16:]
             address = fields[1].split("$")
-            remaining = fields[2]  # track 2 data will be one behind in this case
+            # track 2 data will be one behind in this case
+            remaining = fields[2]
         else:
             name_pre = fields[1]
             address = fields[2].split("$")[0]
@@ -258,15 +260,16 @@ class AAMVA:
         ) - datetime.timedelta(days=1)
 
         dob_str = track2[1][4:12]  # e.g. 19850215
-        dob = datetime.date(int(dob_str[0:4]), int(dob_str[4:6]), int(dob_str[6:8]))
+        dob = datetime.date(int(dob_str[0:4]), int(
+            dob_str[4:6]), int(dob_str[6:8]))
 
         # parse track3:
         template = track3[
-                   1:2
-                   ]  # FIXME: according to A.4.3 should only be 0,2 but mine says 1
+            1:2
+        ]  # FIXME: according to A.4.3 should only be 0,2 but mine says 1
         security = track3[
-                   2:3
-                   ]  # FIXME: docs says 1 character long but says 00-63 are valid values.
+            2:3
+        ]  # FIXME: docs says 1 character long but says 00-63 are valid values.
         postal_code = track3[3:14].strip()  # remove space padding
         license_class = track3[14:16].strip()
         restrictions = track3[16:26].strip()
@@ -278,8 +281,8 @@ class AAMVA:
         eyes = track3[40:43]
 
         # assert 'F' in sex or 'M' in sex, "Invalid sex %s" % sex
-        assert height.isdigit() or height == "", "Invalid height"
-        assert weight.isdigit() or weight == "", "Invalid weight"
+        #assert height.isdigit() or height == "", "Invalid height"
+        #assert weight.isdigit() or weight == "", "Invalid weight"
         # assert hair in HAIRCOLOURS, "Invalid hair colour %s" % hair
         # assert eyes in EYECOLOURS, "Invalid eye colour %s" % eyes
 
@@ -289,7 +292,7 @@ class AAMVA:
         if weight != "":
             weight = Weight(None, int(weight), "USA")
         else:
-            weight == None
+            weight is None
         # cast height (Also assumes no one is taller than 9'11"
         height = Height((int(height[0]) * 12) + int(height[1:]), "USA")
 
@@ -334,17 +337,17 @@ class AAMVA:
             # segterm = '\x0a' # Have to override to work with SC old format
         else:
             assert (
-                    data[2] == PDF_RECORDSEP
+                data[2] == PDF_RECORDSEP
             ), "Missing record separator (RS) got (%s)" % repr(data[2])
         assert data[3] == PDF_SEGTERM, "Missing segment terminator (CR)"
         assert (data[4:9] == PDF_FILETYPE) or (data[4:9] == "AAMVA"), (
-                'Wrong file type (got "%s", should be "ANSI ")' % data[4:9]
+            'Wrong file type (got "%s", should be "ANSI ")' % data[4:9]
         )
         issue_identifier = data[9:15]
         assert issue_identifier.isdigit(), "Issue Identifier is not an integer"
         version = int(data[15:17])
         assert version in PDF_VERSIONS, (
-                "Invalid data version number (got %s, should be 0 - 63)" % version
+            "Invalid data version number (got %s, should be 0 - 63)" % version
         )
 
         log("Format version: " + str(version))
@@ -361,7 +364,7 @@ class AAMVA:
             # subfile designator
             # FIXME could also be 'ID'
             assert data[19:21] == "DL" or data[19:21] == "ID", (
-                    "Not a driver's license (Got '%s', should be 'DL')" % data[19:21]
+                "Not a driver's license (Got '%s', should be 'DL')" % data[19:21]
             )
             offset = data[21:25]
             assert offset.isdigit(), "Subfile offset is not an integer"
@@ -479,9 +482,9 @@ class AAMVA:
         if debug:
             pprint.pprint(subfile)
 
-        assert subfile[0][:2] == "DL" or subfile[0][:2] == "ID", (
-                "Not a driver's license (Got '%s', should be 'DL')" % subfile[0][:2]
-        )
+        #assert subfile[0][:2] == "DL" or subfile[0][:2] == "ID", (
+        #    "Not a driver's license (Got '%s', should be 'DL')" % subfile[0][:2]
+        #)
         subfile[0] = subfile[0][2:]  # remove prepended "DL"
         subfile[-1] = subfile[-1].strip(segterm)
         # Decode fields as a dictionary
@@ -546,8 +549,9 @@ class AAMVA:
                 weight = None
                 units = None
         finally:
-            assert height.isdigit() or height is not None, "Invalid height"
-            assert weight.isdigit() or height is not None, "Invalid weight"
+            pass
+            #assert height.isdigit() or height is not None, "Invalid height"
+            #assert weight.isdigit() or height is not None, "Invalid weight"
 
         # weight is optional
         if units == METRIC:
@@ -660,11 +664,13 @@ class AAMVA:
 
         # Physical description
         sex = fields["DBC"]
-        assert sex in "12", "Invalid sex"
+        assert sex in "129", "Invalid sex"
         if sex == "1":
             sex = MALE
         if sex == "2":
             sex = FEMALE
+        if sex == "9":
+            sex = NOT_SPECIFIED
 
         # Some v.03 barcodes (Indiana) [wrongly, and stupidly] omit
         # the mandatory height (DAU) field.
@@ -680,12 +686,14 @@ class AAMVA:
                 units = METRIC
                 height = Height(height)
             else:
-                raise AssertionError("Invalid unit for height")
+                height = None
+                #raise AssertionError("Invalid unit for height")
         except KeyError:
             try:  # Indiana puts it in the jurisdiction field ZIJ
                 height = fields["ZIJ"].split("-")
                 units = IMPERIAL
-                height = Height((int(height[0]) * 12) + int(height[1]), format="USA")
+                height = Height(
+                    (int(height[0]) * 12) + int(height[1]), format="USA")
             except KeyError:
                 # Give up on parsing height
                 log("ERROR: Unable to parse height.")
@@ -702,7 +710,8 @@ class AAMVA:
         except KeyError:
             try:  # Indiana
                 hair = fields["ZIL"]
-                assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(hair)
+                assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(
+                    hair)
             except KeyError:
                 hair = None
 
@@ -722,7 +731,8 @@ class AAMVA:
         except KeyError:
             try:  # Indiana again
                 weight = fields["ZIK"]
-                assert weight.isdigit(), "Weight is non-integer: {0}".format(weight)
+                assert weight.isdigit(
+                ), "Weight is non-integer: {0}".format(weight)
                 weight = Weight(int(weight), format="USA")
             except KeyError:
                 weight = None  # Give up
@@ -815,11 +825,13 @@ class AAMVA:
 
         # Physical description
         sex = fields["DBC"]
-        assert sex in "12", "Invalid sex"
+        assert sex in "129", "Invalid sex"
         if sex == "1":
             sex = MALE
         if sex == "2":
             sex = FEMALE
+        if sex == "9":
+            sex = NOT_SPECIFIED
 
         height = fields["DAU"]
         if height[-2:].lower() == "cm":  # metric
@@ -838,7 +850,8 @@ class AAMVA:
             units = IMPERIAL
             height = Height(height, format="USA")
         else:
-            raise AssertionError("Invalid unit for height")
+            height = None
+            #raise AssertionError("Invalid unit for height")
 
         # weight is optional
         if units == METRIC:
@@ -851,7 +864,7 @@ class AAMVA:
                 weight = Weight(None, int(fields["DAW"]), "USA")
             except KeyError:
                 weight = None
-        if weight == None:
+        if weight is None:
             # Try weight range
             try:
                 weight = fields["DCE"]
@@ -956,11 +969,13 @@ class AAMVA:
 
         # Physical description
         sex = fields["DBC"]
-        assert sex in "12", "Invalid sex"
+        assert sex in "129", "Invalid sex"
         if sex == "1":
             sex = MALE
         if sex == "2":
             sex = FEMALE
+        if sex == "9":
+            sex == NOT_SPECIFIED
 
         height = fields["DAU"]
         if height[-2:] == "in":  # inches
@@ -972,7 +987,8 @@ class AAMVA:
             units = METRIC
             height = Height(height)
         else:
-            raise AssertionError("Invalid unit for height")
+            height = None
+            #raise AssertionError("Invalid unit for height")
 
         # weight is optional
         if units == METRIC:
@@ -985,7 +1001,7 @@ class AAMVA:
                 weight = Weight(None, int(fields["DAW"]), "USA")
             except KeyError:
                 weight = None
-        if weight == None:
+        if weight is None:
             # Try weight range
             try:
                 weight = fields["DCE"]
@@ -997,10 +1013,10 @@ class AAMVA:
                 weight = None
 
         # Hair/eye colour are mandatory
-        hair = fields["DAZ"]
-        eyes = fields["DAY"]
-        assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(eyes)
-        assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(hair)
+        hair = fields.get("DAZ")
+        eyes = fields.get("DAY")
+        #assert hair in HAIRCOLOURS, "Invalid hair colour: {0}".format(eyes)
+        #assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(hair)
 
         # name suffix optional. No prefix field in this version.
         try:
@@ -1103,6 +1119,8 @@ class AAMVA:
             sex = MALE
         if sex == "2":
             sex = FEMALE
+        if sex == "9":
+            sex = NOT_SPECIFIED
 
         eyes = fields["DAY"]  # (REQUIRED 2011 k.)
         assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(eyes)
@@ -1117,7 +1135,8 @@ class AAMVA:
             units = METRIC
             height = Height(height)
         else:
-            raise AssertionError("Invalid unit for height")
+            height = None
+            #raise AssertionError("Invalid unit for height")
 
         # 2011 m, n, o, p, are required address elements
 
@@ -1132,7 +1151,7 @@ class AAMVA:
                 weight = Weight(None, int(fields["DAW"]), "USA")
             except KeyError:
                 weight = None
-        if weight == None:
+        if weight is None:
             # Try weight range
             try:
                 weight = fields["DCE"]
@@ -1166,11 +1185,11 @@ class AAMVA:
         # v6 adds optional date fields DDH, DDI, and DDJ (Under 18/19/21 until)
         arrival_dates = {}
         if "DDH" in list(fields.keys()):
-            arrival_dates["under_18_until"] = self._parseDate(fields["DDH"])
+            arrival_dates["under_18_until"] = self._parse_date(fields["DDH"])
         if "DDI" in list(fields.keys()):
-            arrival_dates["under_19_until"] = self._parseDate(fields["DDI"])
+            arrival_dates["under_19_until"] = self._parse_date(fields["DDI"])
         if "DDJ" in list(fields.keys()):
-            arrival_dates["under_21_until"] = self._parseDate(fields["DDJ"])
+            arrival_dates["under_21_until"] = self._parse_date(fields["DDJ"])
 
         # TODO: OPTIONAL 2011 field a.a.
 
@@ -1251,11 +1270,13 @@ class AAMVA:
 
         # Physical description
         sex = fields["DBC"]  # (REQUIRED 2013 j.)
-        assert sex in "12", "Invalid sex"
+        assert sex in "129", "Invalid sex"
         if sex == "1":
             sex = MALE
         if sex == "2":
             sex = FEMALE
+        if sex == "9":
+            sex = NOT_SPECIFIED
 
         eyes = fields["DAY"]  # (REQUIRED 2013 k.)
         assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(eyes)
@@ -1270,7 +1291,8 @@ class AAMVA:
             units = METRIC
             height = Height(height)
         else:
-            raise AssertionError("Invalid unit for height")
+            height = None
+            #raise AssertionError("Invalid unit for height")
 
         # 2013 m, n, o, p, are required address elements
 
@@ -1319,11 +1341,11 @@ class AAMVA:
         # v6 adds optional date fields DDH, DDI, and DDJ (Under 18/19/21 until)
         arrival_dates = {}
         if "DDH" in list(fields.keys()):
-            arrival_dates["under_18_until"] = self._parseDate(fields["DDH"])
+            arrival_dates["under_18_until"] = self._parse_date(fields["DDH"])
         if "DDI" in list(fields.keys()):
-            arrival_dates["under_19_until"] = self._parseDate(fields["DDI"])
+            arrival_dates["under_19_until"] = self._parse_date(fields["DDI"])
         if "DDJ" in list(fields.keys()):
-            arrival_dates["under_21_until"] = self._parseDate(fields["DDJ"])
+            arrival_dates["under_21_until"] = self._parse_date(fields["DDJ"])
 
         # TODO: OPTIONAL 2013 field a.a.
 
@@ -1411,7 +1433,7 @@ class AAMVA:
         if sex == "2":
             sex = FEMALE
         if sex == "9":
-            sex = UNSPECIFIED
+            sex = NOT_SPECIFIED
 
         eyes = fields["DAY"]  # (REQUIRED 2016 k.)
         assert eyes in EYECOLOURS, "Invalid eye colour: {0}".format(eyes)
@@ -1426,7 +1448,8 @@ class AAMVA:
             units = METRIC
             height = Height(height)
         else:
-            raise AssertionError("Invalid unit for height")
+            height = None
+            #raise AssertionError("Invalid unit for height")
 
         # 2016 m, n, o, p, are required address elements
 
@@ -1441,7 +1464,7 @@ class AAMVA:
                 weight = Weight(None, int(fields["DAW"]), "USA")
             except KeyError:
                 weight = None
-        if weight == None:
+        if weight is None:
             # Try weight range
             try:
                 weight = fields["DCE"]
@@ -1475,11 +1498,11 @@ class AAMVA:
         # v6 adds optional date fields DDH, DDI, and DDJ (Under 18/19/21 until)
         arrival_dates = {}
         if "DDH" in list(fields.keys()):
-            arrival_dates["under_18_until"] = self._parseDate(fields["DDH"])
+            arrival_dates["under_18_until"] = self._parse_date(fields["DDH"])
         if "DDI" in list(fields.keys()):
-            arrival_dates["under_19_until"] = self._parseDate(fields["DDI"])
+            arrival_dates["under_19_until"] = self._parse_date(fields["DDI"])
         if "DDJ" in list(fields.keys()):
-            arrival_dates["under_21_until"] = self._parseDate(fields["DDJ"])
+            arrival_dates["under_21_until"] = self._parse_date(fields["DDJ"])
 
         # TODO: OPTIONAL 2016 field a.a.
 
@@ -1621,7 +1644,7 @@ class Weight:
         else:
             raise WeightError("Invalid format: '%s'" % format)
 
-        if weight_range == None:  # Defined by exact weight (lbs or kg)
+        if weight_range is None:  # Defined by exact weight (lbs or kg)
             self.exact = True
             assert weight != None and type(weight) == int, "Invalid weight"
             self.weight = weight
